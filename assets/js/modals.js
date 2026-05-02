@@ -1,0 +1,1 @@
+// Confirmation modal scripts scaffold.

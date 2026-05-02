@@ -1,0 +1,1 @@
+-- Placeholder: consolidated database schema for the admin dashboard.
