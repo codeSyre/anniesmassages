@@ -1,3 +1,3 @@
 // Confirmation modal scripts scaffold.
+
 export {};
-//# sourceMappingURL=modals.js.map
