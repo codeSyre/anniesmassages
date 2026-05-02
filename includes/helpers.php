@@ -63,3 +63,52 @@ function badge_class(string $tone): string
         default => 'badge badge-neutral',
     };
 }
+
+function redirect_to(string $path): never
+{
+    header('Location: ' . $path);
+    exit;
+}
+
+function flash_set(string $key, mixed $value): void
+{
+    $_SESSION['_flash'][$key] = $value;
+}
+
+function flash_get(string $key, mixed $default = null): mixed
+{
+    $value = $_SESSION['_flash'][$key] ?? $default;
+    unset($_SESSION['_flash'][$key]);
+
+    return $value;
+}
+
+function remember_old_input(array $input): void
+{
+    $_SESSION['_old'] = $input;
+}
+
+function old_input(string $key, mixed $default = ''): mixed
+{
+    return $_SESSION['_old'][$key] ?? $default;
+}
+
+function clear_old_input(): void
+{
+    unset($_SESSION['_old']);
+}
+
+function status_badge_class(string $status): string
+{
+    return badge_class(match ($status) {
+        'confirmed', 'completed', 'paid' => 'success',
+        'pending', 'partial', 'pending_payment', 'rescheduled' => 'warning',
+        'cancelled', 'no_show', 'refunded' => 'danger',
+        default => 'info',
+    });
+}
+
+function active_filter(string $current, string $expected): string
+{
+    return $current === $expected ? 'filter-chip is-active' : 'filter-chip';
+}
