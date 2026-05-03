@@ -3,21 +3,22 @@
 function current_user(): ?array
 {
     if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
-        return $_SESSION['user'];
+        $user = $_SESSION['user'];
+    } else {
+        return null;
     }
 
-    if ((bool) app_config('allow_demo_login', false)) {
-        $_SESSION['user'] = [
-            'id' => 1,
-            'name' => 'Annie Admin',
-            'email' => 'admin@anniesmassages.test',
-            'role' => (string) app_config('default_role', 'super_admin'),
-        ];
+    require_once __DIR__ . '/../models/Role.php';
+    $roleId = Role::roleIdForUser((string) ($user['id'] ?? ''), (string) ($user['role'] ?? app_config('default_role', 'super_admin')));
+    $role = Role::find($roleId);
 
-        return $_SESSION['user'];
+    if ($role !== null) {
+        $user['role'] = $roleId;
+        $user['role_label'] = $role['name'];
+        $_SESSION['user'] = $user;
     }
 
-    return null;
+    return $user;
 }
 
 function require_login(): array
@@ -25,7 +26,8 @@ function require_login(): array
     $user = current_user();
 
     if ($user === null) {
-        header('Location: /index.php');
+        $redirect = $_SERVER['REQUEST_URI'] ?? '/dashboard.php';
+        header('Location: /index.php?redirect=' . urlencode((string) $redirect));
         exit;
     }
 
@@ -40,17 +42,9 @@ function user_can(string $permission): bool
         return false;
     }
 
-    if (($user['role'] ?? '') === 'super_admin') {
-        return true;
-    }
-
-    $granted = $_SESSION['permissions'] ?? [
-        'dashboard.view',
-        'bookings.view',
-        'payments.view',
-        'inventory.manage',
-        'reports.view',
-    ];
+    require_once __DIR__ . '/../models/Role.php';
+    $roleId = Role::roleIdForUser((string) ($user['id'] ?? ''), (string) ($user['role'] ?? app_config('default_role', 'super_admin')));
+    $granted = $_SESSION['permissions'] ?? Role::permissionsForRole($roleId);
 
     return in_array($permission, $granted, true);
 }

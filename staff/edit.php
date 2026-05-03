@@ -37,14 +37,23 @@ require __DIR__ . '/../includes/header.php';
                     <p>Keep role, specialty, contact details, workload expectations, and compensation structure current.</p>
                 </div>
 
+                <?php if (isset($errors['staff'])): ?>
+                    <p class="inline-error"><?= e($errors['staff']) ?></p>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/staff-save.php">
                     <input type="hidden" name="id" value="<?= e($member['id']) ?>">
 
                     <div class="form-grid">
                         <label class="field">
-                            <span>Full name</span>
-                            <input type="text" name="name" value="<?= e((string) old_input('name', $member['name'])) ?>">
-                            <?php if (isset($errors['name'])): ?><small><?= e($errors['name']) ?></small><?php endif; ?>
+                            <span>First name</span>
+                            <input type="text" name="first_name" value="<?= e((string) old_input('first_name', $member['first_name'])) ?>">
+                            <?php if (isset($errors['first_name'])): ?><small><?= e($errors['first_name']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Last name</span>
+                            <input type="text" name="last_name" value="<?= e((string) old_input('last_name', $member['last_name'])) ?>">
+                            <?php if (isset($errors['last_name'])): ?><small><?= e($errors['last_name']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Specialty</span>
@@ -73,6 +82,26 @@ require __DIR__ . '/../includes/header.php';
                             <span>Email</span>
                             <input type="email" name="email" value="<?= e((string) old_input('email', $member['email'])) ?>">
                             <?php if (isset($errors['email'])): ?><small><?= e($errors['email']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Address line 1</span>
+                            <input type="text" name="address_line_1" value="<?= e((string) old_input('address_line_1', $member['address_line_1'])) ?>">
+                        </label>
+                        <label class="field">
+                            <span>Address line 2</span>
+                            <input type="text" name="address_line_2" value="<?= e((string) old_input('address_line_2', $member['address_line_2'])) ?>">
+                        </label>
+                        <label class="field">
+                            <span>City / town</span>
+                            <input type="text" name="city_town" value="<?= e((string) old_input('city_town', $member['city_town'])) ?>">
+                        </label>
+                        <label class="field">
+                            <span>Country</span>
+                            <input type="text" name="country" value="<?= e((string) old_input('country', $member['country'])) ?>">
+                        </label>
+                        <label class="field">
+                            <span>Profile picture path</span>
+                            <input type="text" name="profile_picture_path" value="<?= e((string) old_input('profile_picture_path', $member['profile_picture_path'])) ?>">
                         </label>
                         <label class="field">
                             <span>Capacity note</span>

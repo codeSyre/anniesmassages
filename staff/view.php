@@ -14,6 +14,12 @@ if ($member === null) {
 }
 
 $recentBookings = array_slice(Staff::bookings($member['id']), 0, 4);
+$address = trim(implode(', ', array_filter([
+    $member['address_line_1'],
+    $member['address_line_2'],
+    $member['city_town'],
+    $member['country'],
+])));
 $flashMessage = flash_get('staff_success');
 
 $pageTitle = 'Staff Profile';
@@ -73,8 +79,10 @@ require __DIR__ . '/../includes/header.php';
                 <div class="detail-pairs">
                     <div><span>Role / type</span><strong><?= e(ucfirst($member['role_type'])) ?></strong><small><?= e($member['specialty']) ?></small></div>
                     <div><span>Contact</span><strong><?= e($member['phone']) ?></strong><small><?= e($member['email']) ?></small></div>
+                    <div><span>Address</span><strong><?= e($address !== '' ? $address : 'Not provided') ?></strong><small>Staff location context</small></div>
                     <div><span>Capacity</span><strong><?= e($member['capacity']) ?></strong><small><?= e((string) $member['enabled_days']) ?> active days</small></div>
                     <div><span>Compensation</span><strong><?= e(ucfirst($member['salary_structure'])) ?></strong><small><?= e((string) $member['commission_rate']) ?>% commission · <?= e(format_money((float) $member['fixed_pay'])) ?> fixed</small></div>
+                    <div><span>Profile picture path</span><strong><?= e($member['profile_picture_path'] !== '' ? $member['profile_picture_path'] : 'Not provided') ?></strong><small>Upload integration placeholder</small></div>
                 </div>
             </article>
 

@@ -15,11 +15,12 @@ $topbarAction = $topbarAction ?? null;
         <?php else: ?>
             <button class="topbar-cta" type="button">Export snapshot</button>
         <?php endif; ?>
+        <a class="topbar-link" href="/process/logout.php">Sign out</a>
         <div class="user-chip">
             <span class="user-chip-avatar"><?= e(initials($currentUser['name'] ?? 'Admin User')) ?></span>
             <div>
                 <strong><?= e($currentUser['name'] ?? 'Admin User') ?></strong>
-                <span><?= e(str_replace('_', ' ', $currentUser['role'] ?? 'admin')) ?></span>
+                <span><?= e($currentUser['role_label'] ?? str_replace('_', ' ', $currentUser['role'] ?? 'admin')) ?></span>
             </div>
         </div>
     </div>

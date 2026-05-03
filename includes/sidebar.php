@@ -19,7 +19,7 @@ $activeRoute = $currentRoute ?? 'dashboard';
                 <?php foreach ($items as $item): ?>
                     <?php $isActive = $activeRoute === $item['route']; ?>
                     <a class="nav-link <?= $isActive ? 'is-active' : '' ?>" href="<?= e($item['href']) ?>">
-                        <span class="nav-link-icon"><?= e(strtoupper(substr($item['label'], 0, 1))) ?></span>
+                        <span class="nav-link-icon"><?= nav_icon_svg((string) ($item['icon'] ?? 'overview')) ?></span>
                         <span><?= e($item['label']) ?></span>
                     </a>
                 <?php endforeach; ?>

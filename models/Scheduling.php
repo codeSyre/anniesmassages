@@ -82,9 +82,17 @@ final class Scheduling
             ];
         }
 
-        $profiles['stf-kuda']['days']['wednesday']['enabled'] = false;
-        $profiles['stf-kuda']['days']['thursday']['enabled'] = false;
-        $profiles['stf-shamiso']['days']['saturday']['end'] = '16:00';
+        if (isset($profiles['stf-kuda']['days']['wednesday'])) {
+            $profiles['stf-kuda']['days']['wednesday']['enabled'] = false;
+        }
+
+        if (isset($profiles['stf-kuda']['days']['thursday'])) {
+            $profiles['stf-kuda']['days']['thursday']['enabled'] = false;
+        }
+
+        if (isset($profiles['stf-shamiso']['days']['saturday'])) {
+            $profiles['stf-shamiso']['days']['saturday']['end'] = '16:00';
+        }
 
         return array_replace_recursive($profiles, $_SESSION['availability_profiles'] ?? []);
     }
