@@ -17,6 +17,13 @@ function format_money(float $amount): string
     return '$' . number_format($amount, 2);
 }
 
+function format_quantity(int|float $quantity): string
+{
+    $formatted = number_format((float) $quantity, 2, '.', '');
+
+    return rtrim(rtrim($formatted, '0'), '.');
+}
+
 function initials(string $name): string
 {
     $parts = preg_split('/\s+/', trim($name)) ?: [];

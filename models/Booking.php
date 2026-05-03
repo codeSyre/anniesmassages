@@ -218,6 +218,29 @@ final class Booking
         return $booking;
     }
 
+    public static function applyPaymentSummary(string $bookingId, float $amountPaid, string $paymentStatus, ?array $historyEntry = null): ?array
+    {
+        $booking = self::find($bookingId);
+
+        if ($booking === null) {
+            return null;
+        }
+
+        $booking['amount_paid'] = round(max(0.0, $amountPaid), 2);
+        $booking['payment_status'] = $paymentStatus;
+        $booking['balance'] = $paymentStatus === 'refunded'
+            ? 0.0
+            : max(0.0, (float) $booking['amount_total'] - (float) $booking['amount_paid']);
+
+        if (is_array($historyEntry)) {
+            $booking['history'][] = $historyEntry;
+        }
+
+        $_SESSION['booking_overrides'][$bookingId] = $booking;
+
+        return $booking;
+    }
+
     public static function validate(array $payload, ?string $ignoreBookingId = null): array
     {
         $errors = [];

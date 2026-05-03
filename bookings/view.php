@@ -17,7 +17,7 @@ $flashMessage = flash_get('booking_success');
 $pageTitle = 'Booking Details';
 $pageEyebrow = $booking['reference'];
 $currentRoute = 'bookings';
-$topbarAction = ['label' => 'Edit booking', 'href' => '/bookings/edit.php?id=' . urlencode($booking['id'])];
+$topbarAction = ['label' => 'Payment details', 'href' => '/payments/view.php?booking_id=' . urlencode($booking['id'])];
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -39,6 +39,8 @@ require __DIR__ . '/../includes/header.php';
 
                 <div class="hero-actions">
                     <a class="action-link" href="/bookings/edit.php?id=<?= e($booking['id']) ?>">Edit booking</a>
+                    <a class="action-link is-secondary" href="/payments/create.php?booking_id=<?= e($booking['id']) ?>">Record payment</a>
+                    <a class="action-link is-secondary" href="/notifications/logs.php?booking_id=<?= e($booking['id']) ?>">Notification logs</a>
                     <a class="action-link is-secondary" href="/bookings/list.php">Back to list</a>
                 </div>
             </article>

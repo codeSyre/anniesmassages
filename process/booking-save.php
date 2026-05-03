@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Booking.php';
+require_once __DIR__ . '/../models/Notification.php';
 
 $currentUser = require_login();
 $bookingId = trim((string) ($_POST['id'] ?? ''));
@@ -36,7 +37,9 @@ if ($errors !== []) {
     redirect_to($redirect);
 }
 
+$previousBooking = $bookingId !== '' ? Booking::find($bookingId) : null;
 $booking = Booking::save($payload, $bookingId !== '' ? $bookingId : null);
+Notification::syncBookingNotifications($booking, $previousBooking, (string) ($currentUser['name'] ?? 'Admin panel'));
 
 flash_set('booking_success', $bookingId === '' ? 'Booking created successfully.' : 'Booking updated successfully.');
 clear_old_input();
