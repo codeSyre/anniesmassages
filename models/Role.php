@@ -16,6 +16,7 @@ final class Role
                 'services.view' => 'Review service catalog details and summaries.',
                 'services.create' => 'Create new treatment offerings.',
                 'services.update' => 'Edit existing services and availability details.',
+                'services.delete' => 'Delete services that are no longer used anywhere in the system.',
                 'staff.view' => 'View therapist profiles and calendars.',
                 'staff.create' => 'Create therapist profiles.',
                 'staff.update' => 'Edit therapist records and compensation setup.',
@@ -155,6 +156,8 @@ final class Role
         if ($users === null) {
             $users = self::fallbackUsers();
         }
+
+        $users = self::mergeSessionUser($users);
 
         usort($users, static fn (array $left, array $right): int => strcmp($left['name'], $right['name']));
 
@@ -708,6 +711,50 @@ final class Role
         $name = trim($firstName . ' ' . $lastName);
 
         return $name !== '' ? $name : 'Admin user';
+    }
+
+    private static function mergeSessionUser(array $users): array
+    {
+        $sessionUser = $_SESSION['user'] ?? null;
+
+        if (!is_array($sessionUser)) {
+            return $users;
+        }
+
+        $userId = trim((string) ($sessionUser['id'] ?? ''));
+
+        if ($userId === '') {
+            return $users;
+        }
+
+        foreach ($users as $user) {
+            if ((string) ($user['id'] ?? '') === $userId) {
+                return $users;
+            }
+        }
+
+        $roleId = self::roleIdForUser($userId, (string) ($sessionUser['role'] ?? 'super_admin'));
+        $role = self::find($roleId);
+        $displayName = trim((string) ($sessionUser['name'] ?? ''));
+        $nameParts = preg_split('/\s+/', $displayName) ?: [];
+        $firstName = (string) ($nameParts[0] ?? 'Admin');
+        $lastName = (string) (count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : 'User');
+
+        $users[] = [
+            'id' => $userId,
+            'name' => $displayName !== '' ? $displayName : self::composeName($firstName, $lastName),
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => (string) ($sessionUser['email'] ?? ''),
+            'title' => (string) ($sessionUser['title'] ?? 'Super Admin'),
+            'role_id' => $roleId,
+            'role_name' => (string) ($role['name'] ?? ($sessionUser['role_label'] ?? 'Super Admin')),
+            'status' => 'active',
+            'last_active_at' => date('Y-m-d H:i:s'),
+            'permission_count' => count(self::permissionsForRole($roleId)),
+        ];
+
+        return $users;
     }
 
     private static function mergedRoles(): array

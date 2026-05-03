@@ -1,13 +1,16 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../models/Role.php';
 
 $currentUser = require_login();
 require_permission('staff.create');
 
+$roleOptions = Role::roleOptions(true);
+
 $errors = flash_get('staff_errors', []);
 $pageTitle = 'Create Staff Profile';
-$pageEyebrow = 'New therapist';
+$pageEyebrow = 'New staff';
 $currentRoute = 'staff';
 $topbarAction = ['label' => 'Back to staff', 'href' => '/staff/list.php'];
 
@@ -23,26 +26,26 @@ require __DIR__ . '/../includes/header.php';
             <article class="table-card">
                 <div class="section-head">
                     <div>
-                        <p class="section-kicker">Therapist setup</p>
+                        <p class="section-kicker">Staff setup</p>
                         <h3>Create a staff profile</h3>
-                    </div>
                     <p>Capture role, specialty, contact info, compensation structure, and baseline capacity so the rest of the system can use it.</p>
+                    </div>
                 </div>
 
                 <?php if (isset($errors['staff'])): ?>
                     <p class="inline-error"><?= e($errors['staff']) ?></p>
                 <?php endif; ?>
 
-                <form class="module-form" method="post" action="/process/staff-save.php">
+                <form class="module-form" method="post" action="/process/staff-save.php" enctype="multipart/form-data">
                     <div class="form-grid">
                         <label class="field">
                             <span>First name</span>
-                            <input type="text" name="first_name" value="<?= e((string) old_input('first_name')) ?>" placeholder="Therapist first name">
+                            <input type="text" name="first_name" value="<?= e((string) old_input('first_name')) ?>" placeholder="Staff first name">
                             <?php if (isset($errors['first_name'])): ?><small><?= e($errors['first_name']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Last name</span>
-                            <input type="text" name="last_name" value="<?= e((string) old_input('last_name')) ?>" placeholder="Therapist last name">
+                            <input type="text" name="last_name" value="<?= e((string) old_input('last_name')) ?>" placeholder="Staff last name">
                             <?php if (isset($errors['last_name'])): ?><small><?= e($errors['last_name']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
@@ -52,13 +55,18 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Role / type</span>
-                            <input type="text" name="role_type" value="<?= e((string) old_input('role_type', 'therapist')) ?>" placeholder="therapist, senior therapist">
+                            <select name="role_type">
+                                <option value="">— select a role —</option>
+                                <?php foreach ($roleOptions as $role): ?>
+                                    <option value="<?= e($role['name']) ?>" <?= old_input('role_type') === $role['name'] ? 'selected' : '' ?>><?= e($role['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                             <?php if (isset($errors['role_type'])): ?><small><?= e($errors['role_type']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Status</span>
                             <select name="status">
-                                <?php foreach (['active', 'inactive', 'on_leave', 'terminated'] as $status): ?>
+                                <?php foreach (['active', 'inactive', 'suspended', 'on_leave', 'terminated'] as $status): ?>
                                     <option value="<?= e($status) ?>" <?= old_input('status', 'active') === $status ? 'selected' : '' ?>><?= e(ucfirst(str_replace('_', ' ', $status))) ?></option>
                                 <?php endforeach; ?>
                             </select>
@@ -70,7 +78,7 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Email</span>
-                            <input type="email" name="email" value="<?= e((string) old_input('email')) ?>" placeholder="therapist@example.com">
+                                <input type="email" name="email" value="<?= e((string) old_input('email')) ?>" placeholder="staff@example.com">
                             <?php if (isset($errors['email'])): ?><small><?= e($errors['email']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
@@ -90,21 +98,18 @@ require __DIR__ . '/../includes/header.php';
                             <input type="text" name="country" value="<?= e((string) old_input('country')) ?>" placeholder="Zimbabwe">
                         </label>
                         <label class="field">
-                            <span>Profile picture path</span>
-                            <input type="text" name="profile_picture_path" value="<?= e((string) old_input('profile_picture_path')) ?>" placeholder="/uploads/staff/therapist.jpg">
+                            <span>Profile picture</span>
+                            <input type="file" name="profile_picture" accept="image/*">
                         </label>
                         <label class="field">
-                            <span>Capacity note</span>
-                            <input type="text" name="capacity" value="<?= e((string) old_input('capacity', '4 sessions/day')) ?>" placeholder="4 sessions/day">
-                        </label>
-                        <label class="field">
-                            <span>Profile color</span>
-                            <select name="color">
-                                <?php foreach (['cyan', 'teal', 'amber', 'slate'] as $color): ?>
-                                    <option value="<?= e($color) ?>" <?= old_input('color', 'cyan') === $color ? 'selected' : '' ?>><?= e(ucfirst($color)) ?></option>
+                            <span>Capacity</span>
+                            <select name="capacity">
+                                <?php foreach (['2 sessions/day', '4 sessions/day', '7 sessions/day'] as $cap): ?>
+                                    <option value="<?= e($cap) ?>" <?= old_input('capacity', '4 sessions/day') === $cap ? 'selected' : '' ?>><?= e($cap) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </label>
+
                         <label class="field">
                             <span>Salary structure</span>
                             <select name="salary_structure">
@@ -133,7 +138,7 @@ require __DIR__ . '/../includes/header.php';
 
                     <div class="button-row">
                         <a class="button-muted" href="/staff/list.php">Cancel</a>
-                        <button class="button-primary" type="submit">Save therapist</button>
+                        <button class="button-primary" type="submit">Add staff</button>
                     </div>
                 </form>
             </article>
@@ -149,11 +154,11 @@ require __DIR__ . '/../includes/header.php';
                 <div class="info-list">
                     <article class="info-item">
                         <strong>Profiles feed scheduling</strong>
-                        <p>Availability, blocked slots, and calendar boards all key off the therapist profiles created here.</p>
+                        <p>Availability, blocked slots, and calendar boards all key off the staff profiles created here.</p>
                     </article>
                     <article class="info-item">
                         <strong>Assignments affect booking quality</strong>
-                        <p>Specialties help the front desk pair guests with the right therapist during booking creation.</p>
+                        <p>Specialties help the front desk pair guests with the right staff during booking creation.</p>
                     </article>
                     <article class="info-item">
                         <strong>Compensation data prepares payroll</strong>

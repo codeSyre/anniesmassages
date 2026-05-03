@@ -118,7 +118,8 @@ function status_badge_class(string $status): string
 {
     return badge_class(match ($status) {
         'confirmed', 'completed', 'paid' => 'success',
-        'pending', 'partial', 'pending_payment', 'rescheduled' => 'warning',
+        'pending', 'partial', 'pending_payment', 'rescheduled', 'suspended', 'on_leave' => 'warning',
+        'banned' => 'danger',
         'cancelled', 'no_show', 'refunded' => 'danger',
         default => 'info',
     });
@@ -150,4 +151,17 @@ function nav_icon_svg(string $icon): string
     };
 
     return '<svg class="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' . $paths . '</svg>';
+}
+
+function action_icon_svg(string $icon): string
+{
+    $paths = match ($icon) {
+        'view' => '<path d="M2.75 12s3.25-5.25 9.25-5.25S21.25 12 21.25 12s-3.25 5.25-9.25 5.25S2.75 12 2.75 12Z" /><circle cx="12" cy="12" r="2.5" />',
+        'edit' => '<path d="M4.75 19.25h3.5l9-9a1.75 1.75 0 0 0-3.5-3.5l-9 9v3.5Z" /><path d="M12.75 6.75l3.5 3.5" />',
+        'suspend' => '<circle cx="12" cy="12" r="8.25" /><path d="M8.5 8.5l7 7" />',
+        'delete' => '<path d="M5.75 7.25h12.5" /><path d="M9.25 4.75h5.5" /><path d="M8.25 7.25v10a1 1 0 0 0 1 1h5.5a1 1 0 0 0 1-1v-10" /><path d="M10.25 10.25v5" /><path d="M13.75 10.25v5" />',
+        default => '<circle cx="12" cy="12" r="6.5" />',
+    };
+
+    return '<svg class="action-icon-svg" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $paths . '</svg>';
 }

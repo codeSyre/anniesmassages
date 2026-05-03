@@ -131,6 +131,33 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                     </div>
 
+                    <div class="section-head section-head-compact">
+                        <div>
+                            <p class="section-kicker">Password reset</p>
+                            <h3>Change your login password</h3>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>Current password</span>
+                            <input type="password" name="current_password" placeholder="Enter current password">
+                            <?php if (isset($errors['current_password'])): ?><small><?= e($errors['current_password']) ?></small><?php endif; ?>
+                        </label>
+
+                        <label class="field">
+                            <span>New password</span>
+                            <input type="password" name="new_password" placeholder="At least 8 characters">
+                            <?php if (isset($errors['new_password'])): ?><small><?= e($errors['new_password']) ?></small><?php endif; ?>
+                        </label>
+
+                        <label class="field">
+                            <span>Confirm new password</span>
+                            <input type="password" name="confirm_password" placeholder="Repeat the new password">
+                            <?php if (isset($errors['confirm_password'])): ?><small><?= e($errors['confirm_password']) ?></small><?php endif; ?>
+                        </label>
+                    </div>
+
                     <div class="button-row">
                         <a class="button-muted" href="/dashboard.php">Back to dashboard</a>
                         <button class="button-primary" type="submit">Save profile</button>

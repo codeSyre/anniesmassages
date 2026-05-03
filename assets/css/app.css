@@ -537,11 +537,12 @@ button {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 4px 9px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  line-height: 1.1;
 }
 
 .badge-success {
@@ -863,11 +864,16 @@ td strong {
   color: var(--color-text);
 }
 
+.row-actions-cell {
+  white-space: nowrap;
+}
+
 .row-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .inline-action-form,
@@ -902,14 +908,47 @@ td strong {
   line-height: 1.6;
 }
 
-.row-actions {
-  white-space: nowrap;
-}
-
 .row-actions a {
   color: var(--color-accent);
-  margin-right: 14px;
   font-weight: 600;
+}
+
+.icon-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(86, 199, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(0, 150, 199, 0.1);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.icon-action-button:hover {
+  background: rgba(0, 150, 199, 0.18);
+  border-color: rgba(86, 199, 255, 0.24);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.icon-action-button-danger {
+  border-color: rgba(255, 107, 107, 0.18);
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--color-danger);
+}
+
+.icon-action-button-danger:hover {
+  background: rgba(255, 107, 107, 0.18);
+  border-color: rgba(255, 107, 107, 0.28);
+}
+
+.action-icon-svg {
+  width: 16px;
+  height: 16px;
 }
 
 .inline-action-form {
@@ -1110,6 +1149,23 @@ td strong {
   grid-template-columns: minmax(180px, 220px) repeat(7, minmax(150px, 1fr));
   gap: 12px;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(86, 199, 255, 0.35) transparent;
+}
+
+.schedule-grid::-webkit-scrollbar {
+  height: 10px;
+}
+
+.schedule-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.schedule-grid::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(86, 199, 255, 0.28);
+  background-clip: padding-box;
 }
 
 .schedule-grid-header,

@@ -8,7 +8,7 @@ require_permission('bookings.update');
 
 $settings = Scheduling::slotSettings();
 $services = Service::all();
-$sampleSlots = Scheduling::availableSlots($services[0]['id'], date('Y-m-d'));
+$sampleSlots = isset($services[0]['id']) ? Scheduling::availableSlots((string) $services[0]['id'], date('Y-m-d')) : [];
 $errors = flash_get('scheduling_errors', []);
 $flashMessage = flash_get('scheduling_success');
 

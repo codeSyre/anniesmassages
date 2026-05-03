@@ -1,11 +1,14 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../models/Service.php';
 
 $currentUser = require_login();
 require_permission('services.create');
 
 $errors = flash_get('service_errors', []);
+$categoryOptions = Service::categories();
+$roomOptions = Service::roomOptions();
 $pageTitle = 'Create Service';
 $pageEyebrow = 'New treatment offering';
 $currentRoute = 'services';
@@ -25,9 +28,13 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Service setup</p>
                         <h3>Create a treatment</h3>
-                    </div>
                     <p>Define the customer-facing offer and the operational rules the calendar and booking flow should follow.</p>
+                    </div>
                 </div>
+
+                <?php if (isset($errors['service'])): ?>
+                    <p class="inline-error"><?= e($errors['service']) ?></p>
+                <?php endif; ?>
 
                 <form class="module-form" method="post" action="/process/service-save.php">
                     <div class="form-grid">
@@ -38,7 +45,14 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Category</span>
-                            <input type="text" name="category" value="<?= e((string) old_input('category', 'Massage')) ?>" placeholder="Massage, Signature, Wellness">
+                            <select name="category">
+                                <?php foreach ($categoryOptions as $category): ?>
+                                    <option value="<?= e($category) ?>" <?= old_input('category', 'Massage') === $category ? 'selected' : '' ?>>
+                                        <?= e($category) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['category'])): ?><small><?= e($errors['category']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Price</span>
@@ -57,7 +71,14 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Room / setup</span>
-                            <input type="text" name="room" value="<?= e((string) old_input('room', 'Studio')) ?>" placeholder="Therapy room, Calm room">
+                            <select name="room">
+                                <?php foreach ($roomOptions as $room): ?>
+                                    <option value="<?= e($room) ?>" <?= old_input('room', 'Studio') === $room ? 'selected' : '' ?>>
+                                        <?= e($room) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['room'])): ?><small><?= e($errors['room']) ?></small><?php endif; ?>
                         </label>
                     </div>
 

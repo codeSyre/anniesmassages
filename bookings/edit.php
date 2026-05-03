@@ -15,6 +15,11 @@ if ($booking === null) {
 }
 
 $options = Booking::formOptions();
+$activeCustomers = array_values(array_filter($options['customers'], static fn (array $customer): bool => ($customer['status'] ?? 'active') !== 'banned'));
+$customerOptions = $activeCustomers;
+if ($booking !== null && !array_filter($activeCustomers, static fn (array $customer): bool => $customer['id'] === $booking['customer']['id'])) {
+    $customerOptions[] = $booking['customer'];
+}
 $activeServices = Service::activeOptions();
 $serviceOptions = $activeServices;
 if ($booking !== null && !array_filter($activeServices, static fn (array $service): bool => $service['id'] === $booking['service']['id'])) {
@@ -44,6 +49,10 @@ require __DIR__ . '/../includes/header.php';
                     <p>Edit the assignment, timing, notes, or payment progress without leaving the operations flow.</p>
                 </div>
 
+                <?php if (isset($errors['booking'])): ?>
+                    <div class="notice-banner notice-banner-danger"><?= e($errors['booking']) ?></div>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/booking-save.php">
                     <input type="hidden" name="id" value="<?= e($booking['id']) ?>">
 
@@ -51,9 +60,9 @@ require __DIR__ . '/../includes/header.php';
                         <label class="field">
                             <span>Customer</span>
                             <select name="customer_id">
-                                <?php foreach ($options['customers'] as $customer): ?>
+                                <?php foreach ($customerOptions as $customer): ?>
                                     <?php $selected = old_input('customer_id', $booking['customer']['id']) === $customer['id']; ?>
-                                    <option value="<?= e($customer['id']) ?>" <?= $selected ? 'selected' : '' ?>><?= e($customer['name']) ?></option>
+                                    <option value="<?= e($customer['id']) ?>" <?= $selected ? 'selected' : '' ?>><?= e($customer['name']) ?><?= (($customer['status'] ?? 'active') === 'banned') ? ' · banned' : '' ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <?php if (isset($errors['customer_id'])): ?><small><?= e($errors['customer_id']) ?></small><?php endif; ?>

@@ -14,6 +14,8 @@ if ($service === null) {
 }
 
 $errors = flash_get('service_errors', []);
+$categoryOptions = Service::categories();
+$roomOptions = Service::roomOptions();
 $pageTitle = 'Edit Service';
 $pageEyebrow = $service['name'];
 $currentRoute = 'services';
@@ -37,6 +39,10 @@ require __DIR__ . '/../includes/header.php';
                     <p>Update pricing, duration, room needs, add-ons, and activation state without breaking historical booking records.</p>
                 </div>
 
+                <?php if (isset($errors['service'])): ?>
+                    <p class="inline-error"><?= e($errors['service']) ?></p>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/service-save.php">
                     <input type="hidden" name="id" value="<?= e($service['id']) ?>">
 
@@ -48,7 +54,14 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Category</span>
-                            <input type="text" name="category" value="<?= e((string) old_input('category', $service['category'])) ?>">
+                            <select name="category">
+                                <?php foreach ($categoryOptions as $category): ?>
+                                    <option value="<?= e($category) ?>" <?= old_input('category', $service['category']) === $category ? 'selected' : '' ?>>
+                                        <?= e($category) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['category'])): ?><small><?= e($errors['category']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Price</span>
@@ -67,7 +80,14 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Room / setup</span>
-                            <input type="text" name="room" value="<?= e((string) old_input('room', $service['room'])) ?>">
+                            <select name="room">
+                                <?php foreach ($roomOptions as $room): ?>
+                                    <option value="<?= e($room) ?>" <?= old_input('room', $service['room']) === $room ? 'selected' : '' ?>>
+                                        <?= e($room) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['room'])): ?><small><?= e($errors['room']) ?></small><?php endif; ?>
                         </label>
                     </div>
 

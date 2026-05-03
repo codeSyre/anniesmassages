@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../models/Role.php';
 require_once __DIR__ . '/../models/Staff.php';
 
 $currentUser = require_login();
@@ -11,6 +12,24 @@ $member = $staffId !== '' ? Staff::find($staffId) : null;
 
 if ($member === null) {
     redirect_to('/staff/list.php');
+}
+
+$roleOptions = Role::roleOptions(true);
+$currentRoleExists = false;
+
+foreach ($roleOptions as $roleOption) {
+    if ((string) $roleOption['name'] === (string) $member['role_type']) {
+        $currentRoleExists = true;
+        break;
+    }
+}
+
+if (!$currentRoleExists && trim((string) $member['role_type']) !== '') {
+    $roleOptions[] = [
+        'id' => '',
+        'name' => (string) $member['role_type'],
+        'status' => 'inactive',
+    ];
 }
 
 $errors = flash_get('staff_errors', []);
@@ -62,13 +81,20 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Role / type</span>
-                            <input type="text" name="role_type" value="<?= e((string) old_input('role_type', $member['role_type'])) ?>">
+                            <select name="role_type">
+                                <option value="">— select a role —</option>
+                                <?php foreach ($roleOptions as $roleOption): ?>
+                                    <option value="<?= e($roleOption['name']) ?>" <?= old_input('role_type', $member['role_type']) === $roleOption['name'] ? 'selected' : '' ?>>
+                                        <?= e($roleOption['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                             <?php if (isset($errors['role_type'])): ?><small><?= e($errors['role_type']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Status</span>
                             <select name="status">
-                                <?php foreach (['active', 'inactive', 'on_leave', 'terminated'] as $status): ?>
+                                <?php foreach (['active', 'inactive', 'suspended', 'on_leave', 'terminated'] as $status): ?>
                                     <option value="<?= e($status) ?>" <?= old_input('status', $member['status']) === $status ? 'selected' : '' ?>><?= e(ucfirst(str_replace('_', ' ', $status))) ?></option>
                                 <?php endforeach; ?>
                             </select>
@@ -108,14 +134,6 @@ require __DIR__ . '/../includes/header.php';
                             <input type="text" name="capacity" value="<?= e((string) old_input('capacity', $member['capacity'])) ?>">
                         </label>
                         <label class="field">
-                            <span>Profile color</span>
-                            <select name="color">
-                                <?php foreach (['cyan', 'teal', 'amber', 'slate'] as $color): ?>
-                                    <option value="<?= e($color) ?>" <?= old_input('color', $member['color']) === $color ? 'selected' : '' ?>><?= e(ucfirst($color)) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </label>
-                        <label class="field">
                             <span>Salary structure</span>
                             <select name="salary_structure">
                                 <?php foreach (['fixed', 'commission', 'hybrid'] as $structure): ?>
@@ -143,7 +161,7 @@ require __DIR__ . '/../includes/header.php';
 
                     <div class="button-row">
                         <a class="button-muted" href="/staff/view.php?id=<?= e($member['id']) ?>">Cancel</a>
-                        <button class="button-primary" type="submit">Update therapist</button>
+                        <button class="button-primary" type="submit">Update</button>
                     </div>
                 </form>
             </article>

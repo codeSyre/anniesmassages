@@ -39,6 +39,15 @@ if ($errors !== []) {
 
 $previousBooking = $bookingId !== '' ? Booking::find($bookingId) : null;
 $booking = Booking::save($payload, $bookingId !== '' ? $bookingId : null);
+
+if (!is_array($booking) || trim((string) ($booking['id'] ?? '')) === '') {
+    flash_set('booking_errors', ['booking' => 'We could not save this booking to the database.']);
+    remember_old_input($payload);
+
+    $redirect = $bookingId === '' ? '/bookings/create.php' : '/bookings/edit.php?id=' . urlencode($bookingId);
+    redirect_to($redirect);
+}
+
 Notification::syncBookingNotifications($booking, $previousBooking, (string) ($currentUser['name'] ?? 'Admin panel'));
 
 flash_set('booking_success', $bookingId === '' ? 'Booking created successfully.' : 'Booking updated successfully.');

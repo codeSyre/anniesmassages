@@ -74,7 +74,6 @@ CREATE TABLE IF NOT EXISTS customers (
     email VARCHAR(190) NULL,
     preference VARCHAR(255) NULL,
     admin_notes TEXT NULL,
-    source VARCHAR(100) NULL,
     location VARCHAR(120) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -122,7 +121,7 @@ CREATE TABLE IF NOT EXISTS staff (
 CREATE TABLE IF NOT EXISTS services (
     id CHAR(36) NOT NULL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
-    category VARCHAR(120) NULL,
+    category ENUM('Massage', 'Therapeutic', 'Signature', 'Wellness', 'Experience') NOT NULL DEFAULT 'Massage',
     description TEXT NULL,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     duration_minutes SMALLINT UNSIGNED NOT NULL,

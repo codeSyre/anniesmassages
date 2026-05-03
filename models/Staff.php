@@ -10,13 +10,37 @@ final class Staff
         $staff = self::rawAll($filters);
 
         return array_map(static function (array $member): array {
-            return $member + self::bookingSummary($member['id']) + self::availabilitySummary($member['id']);
+            return ($member + self::bookingSummary($member['id']) + self::availabilitySummary($member['id'])) + self::lifecycleState($member['id']);
         }, $staff);
     }
 
     public static function rawAll(array $filters = []): array
     {
         return self::filteredRecords(self::mergedRecords(), $filters);
+    }
+
+    public static function therapists(array $filters = []): array
+    {
+        $staff = self::rawTherapists($filters);
+
+        return array_map(static function (array $member): array {
+            return ($member + self::bookingSummary($member['id']) + self::availabilitySummary($member['id'])) + self::lifecycleState($member['id']);
+        }, $staff);
+    }
+
+    public static function rawTherapists(array $filters = []): array
+    {
+        return array_values(array_filter(
+            self::rawAll($filters),
+            static fn (array $member): bool => self::isTherapistRole((string) ($member['role_type'] ?? ''))
+        ));
+    }
+
+    public static function isTherapistRole(string $roleType): bool
+    {
+        $normalized = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', $roleType), '-'));
+
+        return $normalized === 'therapist' || str_contains($normalized, 'therapist');
     }
 
     public static function stats(): array
@@ -42,7 +66,7 @@ final class Staff
             return null;
         }
 
-        return $staff + self::bookingSummary($id) + self::availabilitySummary($id);
+        return ($staff + self::bookingSummary($id) + self::availabilitySummary($id)) + self::lifecycleState($id);
     }
 
     public static function bookings(string $staffId): array
@@ -68,11 +92,11 @@ final class Staff
         }
 
         $email = trim((string) ($normalized['email'] ?? ''));
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        if ($email === '') {
+            $errors['email'] = 'Email address is required so this staff member can log in.';
+        } elseif (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             $errors['email'] = 'Enter a valid email address.';
-        }
-
-        if ($email !== '' && self::emailExists($email, $ignoreId)) {
+        } elseif (self::emailExists($email, $ignoreId)) {
             $errors['email'] = 'Another staff profile already uses this email address.';
         }
 
@@ -157,6 +181,12 @@ final class Staff
 
             $statement->close();
 
+             if (!self::syncLoginAccount($connection, $member)) {
+                error_log('Staff save failed: unable to sync login account.');
+
+                return null;
+            }
+
             return self::find($staffId);
         }
 
@@ -169,6 +199,126 @@ final class Staff
         $_SESSION['staff_records'] = $records;
 
         return self::find($staffId);
+    }
+
+    public static function suspend(string $staffId): array
+    {
+        $member = self::find($staffId);
+
+        if ($member === null) {
+            return [
+                'success' => false,
+                'error' => 'Staff member not found.',
+            ];
+        }
+
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            $staffStatement = self::prepare(
+                $connection,
+                'UPDATE staff SET status = ?, updated_at = NOW() WHERE id = ?',
+                'ss',
+                ['suspended', $staffId]
+            );
+
+            if (!$staffStatement instanceof mysqli_stmt) {
+                return [
+                    'success' => false,
+                    'error' => 'Unable to suspend this staff member.',
+                ];
+            }
+            $staffStatement->close();
+
+            $userStatement = self::prepare(
+                $connection,
+                'UPDATE users SET status = ?, updated_at = NOW() WHERE id = ?',
+                'ss',
+                ['suspended', $staffId]
+            );
+
+            if ($userStatement instanceof mysqli_stmt) {
+                $userStatement->close();
+            }
+        } else {
+            $records = $_SESSION['staff_records'] ?? [];
+            $existing = $records[$staffId] ?? self::baseRecords()[$staffId] ?? null;
+
+            if (!is_array($existing)) {
+                return [
+                    'success' => false,
+                    'error' => 'Staff member not found.',
+                ];
+            }
+
+            $existing['status'] = 'suspended';
+            $records[$staffId] = $existing;
+            $_SESSION['staff_records'] = $records;
+        }
+
+        return [
+            'success' => true,
+            'name' => $member['name'],
+        ];
+    }
+
+    public static function delete(string $staffId): array
+    {
+        $member = self::find($staffId);
+
+        if ($member === null) {
+            return [
+                'success' => false,
+                'error' => 'Staff member not found.',
+            ];
+        }
+
+        $lifecycle = self::lifecycleState($staffId);
+
+        if (!($lifecycle['can_delete'] ?? false)) {
+            return [
+                'success' => false,
+                'error' => (string) ($lifecycle['delete_error'] ?? 'This staff member cannot be deleted.'),
+            ];
+        }
+
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            $userStatement = self::prepare($connection, 'DELETE FROM users WHERE id = ?', 's', [$staffId]);
+
+            if ($userStatement instanceof mysqli_stmt) {
+                $userStatement->close();
+            }
+
+            $staffStatement = self::prepare($connection, 'DELETE FROM staff WHERE id = ? LIMIT 1', 's', [$staffId]);
+
+            if (!$staffStatement instanceof mysqli_stmt) {
+                return [
+                    'success' => false,
+                    'error' => 'Unable to delete this staff member.',
+                ];
+            }
+
+            $affectedRows = $staffStatement->affected_rows;
+            $staffStatement->close();
+
+            if ($affectedRows < 1) {
+                return [
+                    'success' => false,
+                    'error' => 'Unable to delete this staff member.',
+                ];
+            }
+        } else {
+            $records = $_SESSION['staff_records'] ?? [];
+            unset($records[$staffId]);
+            $_SESSION['staff_records'] = $records;
+        }
+
+        return [
+            'success' => true,
+            'name' => $member['name'],
+        ];
     }
 
     private static function bookingSummary(string $staffId): array
@@ -218,6 +368,25 @@ final class Staff
         return [
             'enabled_days' => count($enabledDays),
             'today_window' => (bool) $todayWindow['enabled'] ? ($todayWindow['start'] . ' - ' . $todayWindow['end']) : 'Unavailable',
+        ];
+    }
+
+    private static function lifecycleState(string $staffId): array
+    {
+        $bookings = self::bookings($staffId);
+
+        if ($bookings !== []) {
+            return [
+                'can_suspend' => true,
+                'can_delete' => false,
+                'delete_error' => 'This staff member has booking history and cannot be deleted.',
+            ];
+        }
+
+        return [
+            'can_suspend' => true,
+            'can_delete' => true,
+            'delete_error' => '',
         ];
     }
 
@@ -437,6 +606,137 @@ final class Staff
     private static function connection(): ?mysqli
     {
         return function_exists('db_connection') ? db_connection() : null;
+    }
+
+    public static function defaultLoginPassword(): string
+    {
+        return (string) (function_exists('app_config') ? app_config('default_member_password', 'Password@123%') : 'Password@123%');
+    }
+
+    private static function syncLoginAccount(mysqli $connection, array $member): bool
+    {
+        $passwordHash = self::existingPasswordHash($connection, (string) $member['id']);
+
+        if ($passwordHash === null || trim($passwordHash) === '') {
+            $passwordHash = password_hash(self::defaultLoginPassword(), PASSWORD_DEFAULT);
+        }
+
+        $statement = self::prepare(
+            $connection,
+            'INSERT INTO users (
+                id, first_name, last_name, email, password_hash, title, phone,
+                address_line_1, address_line_2, city_town, country, profile_picture_path,
+                timezone, bio, status,
+                notification_booking_updates, notification_payment_updates, notification_system_alerts,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                first_name = VALUES(first_name),
+                last_name = VALUES(last_name),
+                email = VALUES(email),
+                password_hash = VALUES(password_hash),
+                title = VALUES(title),
+                phone = VALUES(phone),
+                address_line_1 = VALUES(address_line_1),
+                address_line_2 = VALUES(address_line_2),
+                city_town = VALUES(city_town),
+                country = VALUES(country),
+                profile_picture_path = VALUES(profile_picture_path),
+                timezone = VALUES(timezone),
+                bio = VALUES(bio),
+                status = VALUES(status),
+                updated_at = NOW()',
+            'sssssssssssssss',
+            [
+                (string) $member['id'],
+                (string) $member['first_name'],
+                (string) $member['last_name'],
+                (string) $member['email'],
+                $passwordHash,
+                (string) $member['role_type'],
+                (string) $member['phone'],
+                (string) $member['address_line_1'],
+                (string) $member['address_line_2'],
+                (string) $member['city_town'],
+                (string) $member['country'],
+                (string) $member['profile_picture_path'],
+                (string) (function_exists('app_config') ? app_config('timezone', 'Africa/Harare') : 'Africa/Harare'),
+                (string) $member['bio'],
+                (string) $member['status'],
+            ]
+        );
+
+        if (!$statement instanceof mysqli_stmt) {
+            return false;
+        }
+
+        $statement->close();
+
+        $roleId = self::resolvableRoleId($connection, (string) $member['role_type']);
+
+        if ($roleId === null) {
+            return true;
+        }
+
+        $roleStatement = self::prepare(
+            $connection,
+            'INSERT INTO user_roles (user_id, role_id, assigned_at) VALUES (?, ?, NOW())
+             ON DUPLICATE KEY UPDATE role_id = VALUES(role_id), assigned_at = NOW()',
+            'ss',
+            [(string) $member['id'], $roleId]
+        );
+
+        if (!$roleStatement instanceof mysqli_stmt) {
+            return false;
+        }
+
+        $roleStatement->close();
+
+        return true;
+    }
+
+    private static function existingPasswordHash(mysqli $connection, string $userId): ?string
+    {
+        $statement = self::prepare($connection, 'SELECT password_hash FROM users WHERE id = ? LIMIT 1', 's', [$userId]);
+
+        if (!$statement instanceof mysqli_stmt) {
+            return null;
+        }
+
+        $passwordHash = null;
+        $statement->bind_result($passwordHash);
+        $statement->fetch();
+        $statement->close();
+
+        return is_string($passwordHash) ? $passwordHash : null;
+    }
+
+    private static function resolvableRoleId(mysqli $connection, string $roleType): ?string
+    {
+        $roleType = trim($roleType);
+
+        if ($roleType !== '') {
+            $slug = strtolower(trim((string) preg_replace('/[^a-z0-9]+/i', '-', $roleType), '-'));
+            $statement = self::prepare(
+                $connection,
+                'SELECT id FROM roles WHERE slug = ? OR LOWER(name) = LOWER(?) LIMIT 1',
+                'ss',
+                [$slug, $roleType]
+            );
+
+            if ($statement instanceof mysqli_stmt) {
+                $roleId = null;
+                $statement->bind_result($roleId);
+                $fetched = $statement->fetch();
+                $statement->close();
+
+                if ($fetched === true && is_string($roleId) && trim($roleId) !== '') {
+                    return $roleId;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static function prepare(mysqli $connection, string $sql, string $types, array $params): ?mysqli_stmt

@@ -14,6 +14,7 @@ $filters = [
 $services = Service::all($filters);
 $stats = Service::stats();
 $flashMessage = flash_get('service_success');
+$errors = flash_get('service_errors', []);
 
 $pageTitle = 'Services';
 $pageEyebrow = 'Service menu management';
@@ -30,6 +31,10 @@ require __DIR__ . '/../includes/header.php';
 
         <?php if (is_string($flashMessage) && $flashMessage !== ''): ?>
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
+        <?php endif; ?>
+
+        <?php if (isset($errors['service'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['service']) ?></div>
         <?php endif; ?>
 
         <section class="module-hero">
@@ -121,9 +126,32 @@ require __DIR__ . '/../includes/header.php';
                                     <span><?= e((string) $service['completed_count']) ?> completed</span>
                                 </td>
                                 <td><span class="<?= e($service['active'] ? 'badge badge-success' : 'badge badge-warning') ?>"><?= e($service['active'] ? 'Active' : 'Inactive') ?></span></td>
-                                <td class="row-actions">
-                                    <a href="/services/view.php?id=<?= e($service['id']) ?>">View</a>
-                                    <a href="/services/edit.php?id=<?= e($service['id']) ?>">Edit</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/services/view.php?id=<?= e($service['id']) ?>" aria-label="View <?= e($service['name']) ?>" title="View">
+                                            <?= action_icon_svg('view') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/services/edit.php?id=<?= e($service['id']) ?>" aria-label="Edit <?= e($service['name']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                        <?php if (($service['can_delete'] ?? false) === true): ?>
+                                            <form
+                                                class="inline-action-form inline-action-form-danger"
+                                                method="post"
+                                                action="/process/service-save.php"
+                                                data-confirm-dialog-form
+                                                data-confirm-title="Delete service?"
+                                                data-confirm-message="Delete <?= e($service['name']) ?> permanently? This action cannot be undone."
+                                                data-confirm-submit-label="Delete service"
+                                            >
+                                                <input type="hidden" name="action" value="delete_service">
+                                                <input type="hidden" name="id" value="<?= e($service['id']) ?>">
+                                                <button class="icon-action-button icon-action-button-danger" type="submit" aria-label="Delete <?= e($service['name']) ?>" title="Delete">
+                                                    <?= action_icon_svg('delete') ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

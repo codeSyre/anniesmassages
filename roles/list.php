@@ -13,8 +13,6 @@ $filters = [
 
 $roles = Role::all($filters);
 $stats = Role::stats();
-$users = Role::users();
-$roleOptions = Role::roleOptions(true);
 $flashMessage = flash_get('role_success');
 $errors = flash_get('role_errors', []);
 
@@ -124,92 +122,34 @@ require __DIR__ . '/../includes/header.php';
                                     <strong><?= e(($role['is_system'] ?? false) ? 'System' : 'Custom') ?></strong>
                                     <span><?= e(($role['is_locked'] ?? false) ? 'Locked' : 'Editable') ?></span>
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/roles/view.php?id=<?= e($role['id']) ?>">View</a>
-                                    <?php if (!($role['is_locked'] ?? false) && user_can('roles.update')): ?>
-                                        <a href="/roles/edit.php?id=<?= e($role['id']) ?>">Edit</a>
-                                    <?php endif; ?>
-                                    <?php if (($role['can_delete'] ?? false) && user_can('roles.update')): ?>
-                                        <form
-                                            class="inline-action-form inline-action-form-danger"
-                                            method="post"
-                                            action="/process/role-save.php"
-                                            data-confirm-dialog-form
-                                            data-confirm-title="Delete role?"
-                                            data-confirm-message="Delete the <?= e($role['name']) ?> role? This action cannot be undone."
-                                            data-confirm-submit-label="Delete role"
-                                        >
-                                            <input type="hidden" name="action" value="delete_role">
-                                            <input type="hidden" name="id" value="<?= e($role['id']) ?>">
-                                            <button class="button-danger" type="submit">Delete</button>
-                                        </form>
-                                    <?php endif; ?>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a href="/roles/view.php?id=<?= e($role['id']) ?>">View</a>
+                                        <?php if (!($role['is_locked'] ?? false) && user_can('roles.update')): ?>
+                                            <a href="/roles/edit.php?id=<?= e($role['id']) ?>">Edit</a>
+                                        <?php endif; ?>
+                                        <?php if (($role['can_delete'] ?? false) && user_can('roles.update')): ?>
+                                            <form
+                                                class="inline-action-form inline-action-form-danger"
+                                                method="post"
+                                                action="/process/role-save.php"
+                                                data-confirm-dialog-form
+                                                data-confirm-title="Delete role?"
+                                                data-confirm-message="Delete the <?= e($role['name']) ?> role? This action cannot be undone."
+                                                data-confirm-submit-label="Delete role"
+                                            >
+                                                <input type="hidden" name="action" value="delete_role">
+                                                <input type="hidden" name="id" value="<?= e($role['id']) ?>">
+                                                <button class="button-danger" type="submit">Delete</button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             <?php endif; ?>
-        </section>
-
-        <section class="table-card section-spaced">
-            <div class="section-head">
-                <div>
-                    <p class="section-kicker">Admin assignments</p>
-                    <h3>Who is using which role</h3>
-                </div>
-                <p class="report-table-note">Change assignments here to update the effective access for each admin account.</p>
-            </div>
-
-            <?php if (isset($errors['assignment'])): ?>
-                <p class="inline-error"><?= e($errors['assignment']) ?></p>
-            <?php endif; ?>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Admin user</th>
-                        <th>Current role</th>
-                        <th>Permission count</th>
-                        <th>Last active</th>
-                        <th>Reassign role</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($users as $user): ?>
-                        <tr>
-                            <td>
-                                <strong><?= e($user['name']) ?></strong>
-                                <span><?= e($user['title']) ?> · <?= e($user['email']) ?></span>
-                            </td>
-                            <td>
-                                <strong><?= e($user['role_name']) ?></strong>
-                                <span><?= e(ucfirst($user['status'])) ?></span>
-                            </td>
-                            <td><?= e((string) $user['permission_count']) ?> keys</td>
-                            <td><?= e(date('j M Y H:i', strtotime($user['last_active_at']))) ?></td>
-                            <td>
-                                <?php if (user_can('roles.update')): ?>
-                                    <form class="inline-action-form" method="post" action="/process/role-save.php">
-                                        <input type="hidden" name="action" value="assign_user">
-                                        <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
-                                        <select name="role_id">
-                                            <?php foreach ($roleOptions as $option): ?>
-                                                <option value="<?= e($option['id']) ?>" <?= $option['id'] === $user['role_id'] ? 'selected' : '' ?>>
-                                                    <?= e($option['name']) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <button class="button-primary" type="submit">Apply</button>
-                                    </form>
-                                <?php else: ?>
-                                    <span><?= e($user['role_name']) ?></span>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
         </section>
 
         <?php require __DIR__ . '/../includes/footer.php'; ?>

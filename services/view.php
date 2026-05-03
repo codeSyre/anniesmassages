@@ -15,6 +15,7 @@ if ($service === null) {
 
 $bookings = array_slice(Service::bookings($service['id']), 0, 6);
 $flashMessage = flash_get('service_success');
+$errors = flash_get('service_errors', []);
 
 $pageTitle = 'Service Details';
 $pageEyebrow = 'Services management';
@@ -33,6 +34,10 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
+        <?php if (isset($errors['service'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['service']) ?></div>
+        <?php endif; ?>
+
         <section class="module-hero">
             <article class="hero-panel">
                 <p class="hero-eyebrow">Service profile</p>
@@ -42,6 +47,21 @@ require __DIR__ . '/../includes/header.php';
                 <div class="hero-actions">
                     <a class="action-link" href="/services/edit.php?id=<?= e($service['id']) ?>">Edit service</a>
                     <a class="action-link is-secondary" href="/services/list.php">Back to services</a>
+                    <?php if (($service['can_delete'] ?? false) === true): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/service-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Delete service?"
+                            data-confirm-message="Delete <?= e($service['name']) ?> permanently? This action cannot be undone."
+                            data-confirm-submit-label="Delete service"
+                        >
+                            <input type="hidden" name="action" value="delete_service">
+                            <input type="hidden" name="id" value="<?= e($service['id']) ?>">
+                            <button class="button-danger" type="submit">Delete</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </article>
 

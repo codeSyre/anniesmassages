@@ -37,15 +37,24 @@ require __DIR__ . '/../includes/header.php';
                     <p>Keep contact details, source, preferences, and internal notes current so every future booking inherits the right context.</p>
                 </div>
 
+                <?php if (isset($errors['customer'])): ?>
+                    <p class="inline-error"><?= e($errors['customer']) ?></p>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/customer-save.php">
                     <input type="hidden" name="form_type" value="profile">
                     <input type="hidden" name="id" value="<?= e($customer['id']) ?>">
 
                     <div class="form-grid">
                         <label class="field">
-                            <span>Full name</span>
-                            <input type="text" name="name" value="<?= e((string) old_input('name', $customer['name'])) ?>">
-                            <?php if (isset($errors['name'])): ?><small><?= e($errors['name']) ?></small><?php endif; ?>
+                            <span>First name</span>
+                            <input type="text" name="first_name" value="<?= e((string) old_input('first_name', $customer['first_name'])) ?>">
+                            <?php if (isset($errors['first_name'])): ?><small><?= e($errors['first_name']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Last name</span>
+                            <input type="text" name="last_name" value="<?= e((string) old_input('last_name', $customer['last_name'])) ?>">
+                            <?php if (isset($errors['last_name'])): ?><small><?= e($errors['last_name']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
                             <span>Phone</span>
@@ -56,10 +65,6 @@ require __DIR__ . '/../includes/header.php';
                             <span>Email</span>
                             <input type="email" name="email" value="<?= e((string) old_input('email', $customer['email'])) ?>">
                             <?php if (isset($errors['email'])): ?><small><?= e($errors['email']) ?></small><?php endif; ?>
-                        </label>
-                        <label class="field">
-                            <span>Source</span>
-                            <input type="text" name="source" value="<?= e((string) old_input('source', $customer['source'])) ?>">
                         </label>
                         <label class="field">
                             <span>Location</span>
@@ -103,7 +108,7 @@ require __DIR__ . '/../includes/header.php';
                     </article>
                     <article class="info-item">
                         <strong><?= e($customer['next_visit'] !== null ? date('D, j M Y', strtotime($customer['next_visit'])) : 'No upcoming booking') ?></strong>
-                        <p><?= e($customer['location']) ?> · source <?= e($customer['source']) ?></p>
+                        <p><?= e($customer['location']) ?></p>
                     </article>
                     <article class="info-item">
                         <strong><?= e($customer['preference'] !== '' ? $customer['preference'] : 'No preference saved') ?></strong>

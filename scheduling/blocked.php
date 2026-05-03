@@ -7,7 +7,7 @@ $currentUser = require_login();
 require_permission('bookings.update');
 
 $blocked = Scheduling::blockedSlots();
-$staff = Staff::all();
+$staff = Staff::therapists();
 $errors = flash_get('scheduling_errors', []);
 $flashMessage = flash_get('scheduling_success');
 

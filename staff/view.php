@@ -21,6 +21,7 @@ $address = trim(implode(', ', array_filter([
     $member['country'],
 ])));
 $flashMessage = flash_get('staff_success');
+$errors = flash_get('staff_errors', []);
 
 $pageTitle = 'Staff Profile';
 $pageEyebrow = 'Therapist management';
@@ -39,6 +40,10 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
+        <?php if (isset($errors['staff'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['staff']) ?></div>
+        <?php endif; ?>
+
         <section class="module-hero">
             <article class="hero-panel">
                 <p class="hero-eyebrow">Therapist profile</p>
@@ -48,6 +53,36 @@ require __DIR__ . '/../includes/header.php';
                 <div class="hero-actions">
                     <a class="action-link" href="/staff/calendar.php?id=<?= e($member['id']) ?>">View calendar</a>
                     <a class="action-link is-secondary" href="/staff/earnings.php?id=<?= e($member['id']) ?>">Earnings summary</a>
+                    <?php if (($member['status'] ?? '') !== 'suspended'): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/staff-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Suspend staff member?"
+                            data-confirm-message="Suspend <?= e($member['name']) ?>? They will no longer be able to sign in until reactivated."
+                            data-confirm-submit-label="Suspend member"
+                        >
+                            <input type="hidden" name="action" value="suspend_staff">
+                            <input type="hidden" name="id" value="<?= e($member['id']) ?>">
+                            <button class="button-danger" type="submit">Suspend</button>
+                        </form>
+                    <?php endif; ?>
+                    <?php if (($member['can_delete'] ?? false) === true): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/staff-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Delete staff member?"
+                            data-confirm-message="Delete <?= e($member['name']) ?> permanently? This action cannot be undone."
+                            data-confirm-submit-label="Delete member"
+                        >
+                            <input type="hidden" name="action" value="delete_staff">
+                            <input type="hidden" name="id" value="<?= e($member['id']) ?>">
+                            <button class="button-danger" type="submit">Delete</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </article>
 

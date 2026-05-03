@@ -16,6 +16,7 @@ if ($customer === null) {
 $recentBookings = array_slice(Customer::bookings($customer['id']), 0, 4);
 $paymentHistory = array_slice(Customer::paymentHistory($customer['id']), 0, 4);
 $flashMessage = flash_get('customer_success');
+$errors = flash_get('customer_errors', []);
 
 $pageTitle = 'Customer Profile';
 $pageEyebrow = 'Customer management';
@@ -34,6 +35,10 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
+        <?php if (isset($errors['customer'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['customer']) ?></div>
+        <?php endif; ?>
+
         <section class="module-hero">
             <article class="hero-panel">
                 <p class="hero-eyebrow">Guest profile</p>
@@ -43,10 +48,29 @@ require __DIR__ . '/../includes/header.php';
                 <div class="hero-actions">
                     <a class="action-link" href="/customers/history.php?id=<?= e($customer['id']) ?>">Booking history</a>
                     <a class="action-link is-secondary" href="/customers/notes.php?id=<?= e($customer['id']) ?>">Notes & preferences</a>
+                    <?php if (($customer['can_ban'] ?? false) === true): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/customer-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Ban customer?"
+                            data-confirm-message="Ban <?= e($customer['name']) ?>? They should no longer be treated as an active guest in the system."
+                            data-confirm-submit-label="Ban customer"
+                        >
+                            <input type="hidden" name="form_type" value="ban">
+                            <input type="hidden" name="id" value="<?= e($customer['id']) ?>">
+                            <button class="button-danger" type="submit">Ban customer</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </article>
 
             <aside class="module-stat-grid">
+                <article class="mini-stat-card">
+                    <span class="<?= e(status_badge_class($customer['status'] ?? 'active')) ?>"><?= e(ucfirst((string) ($customer['status'] ?? 'active'))) ?></span>
+                    <strong><?= e($customer['location']) ?></strong>
+                </article>
                 <article class="mini-stat-card">
                     <span class="badge badge-info">Bookings</span>
                     <strong><?= e((string) $customer['booking_count']) ?></strong>
@@ -72,7 +96,7 @@ require __DIR__ . '/../includes/header.php';
                 </div>
 
                 <div class="detail-pairs">
-                    <div><span>Phone</span><strong><?= e($customer['phone']) ?></strong><small><?= e($customer['source']) ?> source</small></div>
+                    <div><span>Phone</span><strong><?= e($customer['phone']) ?></strong><small>Primary contact</small></div>
                     <div><span>Email</span><strong><?= e($customer['email'] !== '' ? $customer['email'] : 'No email recorded') ?></strong><small><?= e($customer['location']) ?></small></div>
                     <div><span>Preference</span><strong><?= e($customer['preference'] !== '' ? $customer['preference'] : 'No preference recorded') ?></strong><small>Used during booking intake</small></div>
                     <div><span>Admin notes</span><strong><?= e($customer['admin_notes'] !== '' ? $customer['admin_notes'] : 'No internal notes yet') ?></strong><small>Private to admin staff</small></div>

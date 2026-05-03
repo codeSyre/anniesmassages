@@ -22,11 +22,17 @@ $payload = [
     'marketing_updates' => isset($_POST['marketing_updates']) ? '1' : '0',
 ];
 
-$errors = Profile::validate($payload);
+$payload['current_password'] = trim((string) ($_POST['current_password'] ?? ''));
+$payload['new_password'] = trim((string) ($_POST['new_password'] ?? ''));
+$payload['confirm_password'] = trim((string) ($_POST['confirm_password'] ?? ''));
+
+$errors = Profile::validate($payload, $currentUser);
 
 if ($errors !== []) {
     flash_set('profile_errors', $errors);
-    remember_old_input($payload);
+    $oldInput = $payload;
+    unset($oldInput['current_password'], $oldInput['new_password'], $oldInput['confirm_password']);
+    remember_old_input($oldInput);
     redirect_to('/profile/index.php');
 }
 

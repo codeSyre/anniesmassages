@@ -14,6 +14,7 @@ if ($customer === null) {
 }
 
 $flashMessage = flash_get('customer_success');
+$errors = flash_get('customer_errors', []);
 
 $pageTitle = 'Customer Notes';
 $pageEyebrow = $customer['name'];
@@ -30,6 +31,10 @@ require __DIR__ . '/../includes/header.php';
 
         <?php if (is_string($flashMessage) && $flashMessage !== ''): ?>
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
+        <?php endif; ?>
+
+        <?php if (isset($errors['customer'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['customer']) ?></div>
         <?php endif; ?>
 
         <section class="split-layout">
@@ -86,7 +91,7 @@ require __DIR__ . '/../includes/header.php';
                     </article>
                     <article class="info-item">
                         <strong><?= e($customer['next_visit'] !== null ? date('D, j M Y', strtotime($customer['next_visit'])) : 'No upcoming visit') ?></strong>
-                        <p><?= e($customer['location']) ?> · source <?= e($customer['source']) ?></p>
+                        <p><?= e($customer['location']) ?></p>
                     </article>
                 </div>
             </aside>

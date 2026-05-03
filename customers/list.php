@@ -13,6 +13,7 @@ $filters = [
 $customers = Customer::all($filters);
 $stats = Customer::stats();
 $flashMessage = flash_get('customer_success');
+$errors = flash_get('customer_errors', []);
 
 $pageTitle = 'Customers';
 $pageEyebrow = 'Guest profiles and preferences';
@@ -29,6 +30,10 @@ require __DIR__ . '/../includes/header.php';
 
         <?php if (is_string($flashMessage) && $flashMessage !== ''): ?>
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
+        <?php endif; ?>
+
+        <?php if (isset($errors['customer'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['customer']) ?></div>
         <?php endif; ?>
 
         <section class="module-hero">
@@ -84,6 +89,7 @@ require __DIR__ . '/../includes/header.php';
                     <thead>
                         <tr>
                             <th>Guest</th>
+                            <th>Status</th>
                             <th>Preference</th>
                             <th>Visits</th>
                             <th>Spend</th>
@@ -99,8 +105,11 @@ require __DIR__ . '/../includes/header.php';
                                     <span><?= e($customer['phone']) ?> · <?= e($customer['email']) ?></span>
                                 </td>
                                 <td>
+                                    <span class="<?= e(status_badge_class($customer['status'] ?? 'active')) ?>"><?= e(ucfirst((string) ($customer['status'] ?? 'active'))) ?></span>
+                                </td>
+                                <td>
                                     <strong><?= e($customer['preference'] !== '' ? $customer['preference'] : 'No preference recorded') ?></strong>
-                                    <span><?= e(implode(' · ', $customer['tags'])) ?></span>
+                                    
                                 </td>
                                 <td>
                                     <strong><?= e((string) $customer['booking_count']) ?> bookings</strong>
@@ -108,15 +117,38 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <strong><?= e(format_money((float) $customer['total_spent'])) ?></strong>
-                                    <span><?= e($customer['source']) ?> source</span>
+                                    
                                 </td>
                                 <td>
                                     <strong><?= e($customer['next_visit'] !== null ? date('D, j M', strtotime($customer['next_visit'])) : 'No upcoming visit') ?></strong>
-                                    <span><?= e($customer['location']) ?></span>
+                                    
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/customers/view.php?id=<?= e($customer['id']) ?>">View</a>
-                                    <a href="/customers/edit.php?id=<?= e($customer['id']) ?>">Edit</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/customers/view.php?id=<?= e($customer['id']) ?>" aria-label="View <?= e($customer['name']) ?>" title="View">
+                                            <?= action_icon_svg('view') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/customers/edit.php?id=<?= e($customer['id']) ?>" aria-label="Edit <?= e($customer['name']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                        <?php if (($customer['can_ban'] ?? false) === true): ?>
+                                            <form
+                                                class="inline-action-form inline-action-form-danger"
+                                                method="post"
+                                                action="/process/customer-save.php"
+                                                data-confirm-dialog-form
+                                                data-confirm-title="Ban customer?"
+                                                data-confirm-message="Ban <?= e($customer['name']) ?>? They should no longer be treated as an active guest in the system."
+                                                data-confirm-submit-label="Ban customer"
+                                            >
+                                                <input type="hidden" name="form_type" value="ban">
+                                                <input type="hidden" name="id" value="<?= e($customer['id']) ?>">
+                                                <button class="icon-action-button icon-action-button-danger" type="submit" aria-label="Ban <?= e($customer['name']) ?>" title="Ban">
+                                                    <?= action_icon_svg('suspend') ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -33,7 +33,7 @@ $pageTitle = 'Sign In';
                         <p class="section-kicker">Authentication</p>
                         <h3>Sign in to the control room</h3>
                     </div>
-                    <p>Use the configured super admin account for full system access during buildout.</p>
+                    <p>Use the configured super admin account or a staff login created from the admin dashboard.</p>
                 </div>
 
                 <form class="module-form" method="post" action="/process/login.php">
@@ -53,7 +53,7 @@ $pageTitle = 'Sign In';
 
                     <div class="auth-meta">
                         <span class="badge badge-warning">Super admin</span>
-                        <p>This login signs into the full-access super admin account so we can test every module in one place.</p>
+                        <p>New staff accounts use their saved email address and the default password assigned during profile creation, then reset it from their profile.</p>
                     </div>
 
                     <div class="button-row auth-button-row">
@@ -63,7 +63,7 @@ $pageTitle = 'Sign In';
 
                 <div class="auth-footnote">
                     <strong>Configured account</strong>
-                    <span>`codesyre@gmail.com` authenticates as the always-allowed `super_admin` account.</span>
+                    <span>`codesyre@gmail.com` authenticates as the always-allowed `super_admin` account. Staff accounts use the default member password until changed.</span>
                 </div>
             </article>
         </section>

@@ -29,14 +29,24 @@ require __DIR__ . '/../includes/header.php';
                     <p>Capture the basics now, then enrich the profile with preferences, notes, and history over time.</p>
                 </div>
 
+                <?php if (isset($errors['customer'])): ?>
+                    <p class="inline-error"><?= e($errors['customer']) ?></p>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/customer-save.php">
                     <input type="hidden" name="form_type" value="profile">
 
                     <div class="form-grid">
                         <label class="field">
-                            <span>Full name</span>
-                            <input type="text" name="name" value="<?= e((string) old_input('name')) ?>" placeholder="Guest name">
-                            <?php if (isset($errors['name'])): ?><small><?= e($errors['name']) ?></small><?php endif; ?>
+                            <span>First name</span>
+                            <input type="text" name="first_name" value="<?= e((string) old_input('first_name')) ?>" placeholder="Guest first name">
+                            <?php if (isset($errors['first_name'])): ?><small><?= e($errors['first_name']) ?></small><?php endif; ?>
+                        </label>
+
+                        <label class="field">
+                            <span>Last name</span>
+                            <input type="text" name="last_name" value="<?= e((string) old_input('last_name')) ?>" placeholder="Guest last name">
+                            <?php if (isset($errors['last_name'])): ?><small><?= e($errors['last_name']) ?></small><?php endif; ?>
                         </label>
 
                         <label class="field">
@@ -49,11 +59,6 @@ require __DIR__ . '/../includes/header.php';
                             <span>Email</span>
                             <input type="email" name="email" value="<?= e((string) old_input('email')) ?>" placeholder="guest@example.com">
                             <?php if (isset($errors['email'])): ?><small><?= e($errors['email']) ?></small><?php endif; ?>
-                        </label>
-
-                        <label class="field">
-                            <span>Source</span>
-                            <input type="text" name="source" value="<?= e((string) old_input('source', 'front desk')) ?>" placeholder="front desk, web, phone">
                         </label>
 
                         <label class="field">

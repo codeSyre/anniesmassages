@@ -9,6 +9,7 @@ require_permission('bookings.create');
 
 $options = Booking::formOptions();
 $activeServices = Service::activeOptions();
+$activeCustomers = array_values(array_filter($options['customers'], static fn (array $customer): bool => ($customer['status'] ?? 'active') !== 'banned'));
 $errors = flash_get('booking_errors', []);
 $pageTitle = 'Create Booking';
 $pageEyebrow = 'New appointment';
@@ -33,13 +34,17 @@ require __DIR__ . '/../includes/header.php';
                     <p>Bookings need a guest, service, therapist, date, and time before they can be placed on the calendar.</p>
                 </div>
 
+                <?php if (isset($errors['booking'])): ?>
+                    <div class="notice-banner notice-banner-danger"><?= e($errors['booking']) ?></div>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/booking-save.php">
                     <div class="form-grid">
                         <label class="field">
                             <span>Customer</span>
                             <select name="customer_id">
                                 <option value="">Select customer</option>
-                                <?php foreach ($options['customers'] as $customer): ?>
+                                <?php foreach ($activeCustomers as $customer): ?>
                                     <option value="<?= e($customer['id']) ?>" <?= old_input('customer_id') === $customer['id'] ? 'selected' : '' ?>><?= e($customer['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
