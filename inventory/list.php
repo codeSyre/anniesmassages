@@ -12,7 +12,7 @@ $filters = [
     'category' => (string) ($_GET['category'] ?? 'all'),
 ];
 
-$items = Inventory::all($filters);
+$inventoryItems = Inventory::all($filters);
 $stats = Inventory::stats();
 $categories = Inventory::categories();
 $flashMessage = flash_get('inventory_success');
@@ -20,7 +20,8 @@ $flashMessage = flash_get('inventory_success');
 $pageTitle = 'Inventory';
 $pageEyebrow = 'Stock levels and supply flow';
 $currentRoute = 'inventory';
-$topbarAction = ['label' => 'New inventory item', 'href' => '/inventory/create.php'];
+$topbarAction = ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -88,7 +89,7 @@ require __DIR__ . '/../includes/header.php';
                 <p>Every quantity shown here is backed by movement history so stock changes stay auditable.</p>
             </div>
 
-            <?php if ($items === []): ?>
+            <?php if ($inventoryItems === []): ?>
                 <div class="empty-state">
                     <strong>No inventory items matched the current filters.</strong>
                     <p>Try clearing the search or add a new stock item.</p>
@@ -107,7 +108,7 @@ require __DIR__ . '/../includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($items as $item): ?>
+                        <?php foreach ($inventoryItems as $item): ?>
                             <tr>
                                 <td>
                                     <strong><?= e($item['name']) ?></strong>
@@ -119,11 +120,9 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <strong><?= e(format_quantity((float) $item['on_hand'])) ?> <?= e($item['unit']) ?></strong>
-                                    <span><?= e($item['last_movement_at'] !== null ? 'Last movement ' . date('j M Y', strtotime($item['last_movement_at'])) : 'No movement yet') ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_quantity((float) $item['reorder_level'])) ?> <?= e($item['unit']) ?></strong>
-                                    <span><?= e($item['used_in_service_names'] !== [] ? implode(' · ', array_slice($item['used_in_service_names'], 0, 2)) : 'Not linked to services') ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_money((float) $item['stock_value'])) ?></strong>

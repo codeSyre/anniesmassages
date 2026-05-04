@@ -19,7 +19,7 @@ $errors = flash_get('service_errors', []);
 $pageTitle = 'Services';
 $pageEyebrow = 'Service menu management';
 $currentRoute = 'services';
-$topbarAction = ['label' => 'New service', 'href' => '/services/create.php'];
+$topbarAction = ['label' => 'New service', 'href' => '/services/create.php', 'permission' => 'services.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

@@ -19,7 +19,7 @@ $errors = flash_get('staff_errors', []);
 $pageTitle = 'Staff';
 $pageEyebrow = 'Team management';
 $currentRoute = 'staff';
-$topbarAction = ['label' => 'New Staff', 'href' => '/staff/create.php'];
+$topbarAction = ['label' => 'New Staff', 'href' => '/staff/create.php', 'permission' => 'staff.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

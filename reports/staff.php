@@ -18,7 +18,7 @@ $pageTitle = 'Staff Performance Report';
 $pageEyebrow = 'Therapist contribution and earnings context';
 $currentRoute = 'reports';
 $reportRoute = 'reports.staff';
-$topbarAction = ['label' => 'Staff roster', 'href' => '/staff/list.php'];
+$topbarAction = ['label' => 'Staff roster', 'href' => '/staff/list.php', 'permission' => 'staff.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

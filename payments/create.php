@@ -35,6 +35,10 @@ require __DIR__ . '/../includes/header.php';
                     <p>Each payment links back to one booking so balances, booking payment status, and reconciliation all stay aligned.</p>
                 </div>
 
+                <?php if (isset($errors['payment'])): ?>
+                    <div class="notice-banner notice-banner-danger"><?= e($errors['payment']) ?></div>
+                <?php endif; ?>
+
                 <form class="module-form" method="post" action="/process/payment-save.php">
                     <input type="hidden" name="recorded_by" value="<?= e($currentUser['name'] ?? 'Admin panel') ?>">
 
@@ -60,7 +64,7 @@ require __DIR__ . '/../includes/header.php';
                             <span>Method</span>
                             <select name="method">
                                 <?php foreach (Payment::methods() as $method): ?>
-                                    <option value="<?= e($method) ?>" <?= (string) old_input('method', 'cash') === $method ? 'selected' : '' ?>><?= e(ucwords(str_replace('_', ' ', $method))) ?></option>
+                                    <option value="<?= e($method) ?>" <?= (string) old_input('method', 'cash') === $method ? 'selected' : '' ?>><?= e(Payment::methodLabel($method)) ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <?php if (isset($errors['method'])): ?><small><?= e($errors['method']) ?></small><?php endif; ?>

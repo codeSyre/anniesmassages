@@ -17,7 +17,7 @@ $pageTitle = 'Inventory Report';
 $pageEyebrow = 'Stock health, movement flow, and supply risk';
 $currentRoute = 'reports';
 $reportRoute = 'reports.inventory';
-$topbarAction = ['label' => 'Inventory list', 'href' => '/inventory/list.php'];
+$topbarAction = ['label' => 'Inventory list', 'href' => '/inventory/list.php', 'permission' => 'inventory.manage'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

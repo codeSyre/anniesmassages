@@ -21,7 +21,7 @@ $flashMessage = flash_get('payment_success');
 $pageTitle = 'Booking Payment Details';
 $pageEyebrow = $booking['reference'];
 $currentRoute = 'payments';
-$topbarAction = ['label' => 'Record payment', 'href' => '/payments/create.php?booking_id=' . urlencode($booking['id'])];
+$topbarAction = ['label' => 'Record payment', 'href' => '/payments/create.php?booking_id=' . urlencode($booking['id']), 'permission' => 'payments.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -93,7 +93,7 @@ require __DIR__ . '/../includes/header.php';
                     <?php foreach ($details['method_breakdown'] as $method => $total): ?>
                         <?php if ((float) $total <= 0): continue; endif; ?>
                         <article class="info-item">
-                            <strong><?= e(ucwords(str_replace('_', ' ', $method))) ?></strong>
+                            <strong><?= e(Payment::methodLabel((string) $method)) ?></strong>
                             <p><?= e(format_money((float) $total)) ?> posted through this channel.</p>
                         </article>
                     <?php endforeach; ?>
@@ -141,7 +141,7 @@ require __DIR__ . '/../includes/header.php';
                                     <span><?= e(date('D, j M Y', strtotime($payment['payment_date']))) ?></span>
                                 </td>
                                 <td>
-                                    <strong><?= e(ucwords(str_replace('_', ' ', $payment['method']))) ?></strong>
+                                    <strong><?= e(Payment::methodLabel((string) $payment['method'])) ?></strong>
                                     <span><?= e($payment['recorded_by']) ?></span>
                                 </td>
                                 <td><strong><?= e(format_money((float) $payment['amount'])) ?></strong></td>

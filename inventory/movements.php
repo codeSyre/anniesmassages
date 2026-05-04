@@ -16,7 +16,7 @@ $filters = [
 
 $movements = Inventory::movements($filters);
 $stats = Inventory::movementStats();
-$items = Inventory::all();
+$inventoryItems = Inventory::all();
 $serviceOptions = Inventory::serviceOptions();
 $movementErrors = flash_get('inventory_movement_errors', []);
 $flashMessage = flash_get('inventory_success');
@@ -24,7 +24,7 @@ $flashMessage = flash_get('inventory_success');
 $pageTitle = 'Stock Movements';
 $pageEyebrow = 'Inventory movement history';
 $currentRoute = 'inventory';
-$topbarAction = ['label' => 'Add inventory item', 'href' => '/inventory/create.php'];
+$topbarAction = ['label' => 'Add inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -80,7 +80,7 @@ require __DIR__ . '/../includes/header.php';
                             <span>Item</span>
                             <select name="item_id">
                                 <option value="">Select item</option>
-                                <?php foreach ($items as $item): ?>
+                                <?php foreach ($inventoryItems as $item): ?>
                                     <option value="<?= e($item['id']) ?>" <?= (string) old_input('item_id', $filters['item_id'] !== 'all' ? $filters['item_id'] : '') === $item['id'] ? 'selected' : '' ?>><?= e($item['name'] . ' · ' . format_quantity((float) $item['on_hand']) . ' ' . $item['unit']) ?></option>
                                 <?php endforeach; ?>
                             </select>
@@ -146,7 +146,7 @@ require __DIR__ . '/../includes/header.php';
                         <span>Item</span>
                         <select name="item_id">
                             <option value="all">All items</option>
-                            <?php foreach ($items as $item): ?>
+                            <?php foreach ($inventoryItems as $item): ?>
                                 <option value="<?= e($item['id']) ?>" <?= $filters['item_id'] === $item['id'] ? 'selected' : '' ?>><?= e($item['name']) ?></option>
                             <?php endforeach; ?>
                         </select>

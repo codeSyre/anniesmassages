@@ -20,7 +20,7 @@ $availability = Scheduling::staffAvailability($member['id'], $date);
 $pageTitle = 'Staff Calendar';
 $pageEyebrow = $member['name'];
 $currentRoute = 'staff';
-$topbarAction = ['label' => 'Manage availability', 'href' => '/scheduling/availability.php?staff_id=' . urlencode($member['id'])];
+$topbarAction = ['label' => 'Manage availability', 'href' => '/scheduling/availability.php?staff_id=' . urlencode($member['id']), 'permission' => 'bookings.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

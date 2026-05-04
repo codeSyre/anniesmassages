@@ -6,7 +6,7 @@ require_once __DIR__ . '/../models/Inventory.php';
 $currentUser = require_login();
 require_permission('inventory.manage');
 
-$items = Inventory::lowStockItems();
+$inventoryItems = Inventory::lowStockItems();
 $stats = Inventory::lowStockSummary();
 $flashMessage = flash_get('inventory_success');
 
@@ -55,10 +55,10 @@ require __DIR__ . '/../includes/header.php';
                     <p class="section-kicker">Priority replenishment</p>
                     <h3>Items needing attention</h3>
                 </div>
-                <p><?= e((string) count($items)) ?> items are currently at or below their reorder point.</p>
+                <p><?= e((string) count($inventoryItems)) ?> items are currently at or below their reorder point.</p>
             </div>
 
-            <?php if ($items === []): ?>
+            <?php if ($inventoryItems === []): ?>
                 <div class="empty-state">
                     <strong>No low-stock items right now.</strong>
                     <p>The current inventory position is healthy across all tracked items.</p>
@@ -76,7 +76,7 @@ require __DIR__ . '/../includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($items as $item): ?>
+                        <?php foreach ($inventoryItems as $item): ?>
                             <tr>
                                 <td>
                                     <strong><?= e($item['name']) ?></strong>

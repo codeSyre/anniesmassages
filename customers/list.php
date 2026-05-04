@@ -18,7 +18,7 @@ $errors = flash_get('customer_errors', []);
 $pageTitle = 'Customers';
 $pageEyebrow = 'Guest profiles and preferences';
 $currentRoute = 'customers';
-$topbarAction = ['label' => 'New customer', 'href' => '/customers/create.php'];
+$topbarAction = ['label' => 'New customer', 'href' => '/customers/create.php', 'permission' => 'customers.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

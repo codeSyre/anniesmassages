@@ -91,7 +91,7 @@ require __DIR__ . '/../includes/header.php';
                     <tbody>
                         <?php foreach ($reconciliation['method_totals'] as $method => $total): ?>
                             <tr>
-                                <td><strong><?= e(ucwords(str_replace('_', ' ', $method))) ?></strong></td>
+                                <td><strong><?= e(Payment::methodLabel((string) $method)) ?></strong></td>
                                 <td><strong><?= e(format_money((float) $total)) ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
@@ -161,7 +161,7 @@ require __DIR__ . '/../includes/header.php';
                                     <strong><?= e($payment['booking_reference']) ?></strong>
                                     <span><?= e($payment['service']['name'] ?? 'Service') ?></span>
                                 </td>
-                                <td><strong><?= e(ucwords(str_replace('_', ' ', $payment['method']))) ?></strong></td>
+                                <td><strong><?= e(Payment::methodLabel((string) $payment['method'])) ?></strong></td>
                                 <td><strong><?= e(format_money((float) $payment['amount'])) ?></strong></td>
                                 <td><span class="<?= e(status_badge_class($payment['payment_status'])) ?>"><?= e(ucfirst(str_replace('_', ' ', $payment['payment_status']))) ?></span></td>
                             </tr>

@@ -45,26 +45,21 @@ function app_navigation(): array
 {
     return [
         'Operations' => [
-            ['label' => 'Dashboard', 'href' => '/dashboard.php', 'icon' => 'overview', 'route' => 'dashboard'],
-            ['label' => 'Bookings', 'href' => '/bookings/list.php', 'icon' => 'bookings', 'route' => 'bookings'],
-            ['label' => 'Calendar', 'href' => '/scheduling/calendar.php', 'icon' => 'calendar', 'route' => 'calendar'],
-            ['label' => 'Customers', 'href' => '/customers/list.php', 'icon' => 'customers', 'route' => 'customers'],
-            ['label' => 'Services', 'href' => '/services/list.php', 'icon' => 'services', 'route' => 'services'],
-            ['label' => 'Staff / Therapists', 'href' => '/staff/list.php', 'icon' => 'staff', 'route' => 'staff'],
+            ['label' => 'Dashboard',        'href' => '/dashboard.php',          'icon' => 'overview',  'route' => 'dashboard', 'permission' => 'dashboard.view'],
+            ['label' => 'Bookings',         'href' => '/bookings/list.php',       'icon' => 'bookings',  'route' => 'bookings',  'permission' => 'bookings.view'],
+            ['label' => 'Calendar',         'href' => '/scheduling/calendar.php', 'icon' => 'calendar',  'route' => 'calendar',  'permission' => 'bookings.view'],
+            ['label' => 'Customers',        'href' => '/customers/list.php',      'icon' => 'customers', 'route' => 'customers', 'permission' => 'customers.view'],
+            ['label' => 'Services',         'href' => '/services/list.php',       'icon' => 'services',  'route' => 'services',  'permission' => 'services.view'],
+            ['label' => 'Staff',            'href' => '/staff/list.php',         'icon' => 'staff',     'route' => 'staff',     'permission' => 'staff.view'],
         ],
         'Finance' => [
-            ['label' => 'Payments Ledger', 'href' => '/payments/ledger.php', 'icon' => 'payments', 'route' => 'payments'],
-            ['label' => 'Inventory', 'href' => '/inventory/list.php', 'icon' => 'inventory', 'route' => 'inventory'],
-            ['label' => 'Payroll', 'href' => '/payroll/dashboard.php', 'icon' => 'payroll', 'route' => 'payroll'],
+            ['label' => 'Payments Ledger', 'href' => '/payments/ledger.php',    'icon' => 'payments',  'route' => 'payments', 'permission' => 'payments.view'],
+            ['label' => 'Inventory',       'href' => '/inventory/list.php',     'icon' => 'inventory', 'route' => 'inventory','permission' => 'inventory.manage'],
+            ['label' => 'Payroll',         'href' => '/payroll/dashboard.php',  'icon' => 'payroll',   'route' => 'payroll',  'permission' => 'payroll.manage'],
         ],
         'Management' => [
-            ['label' => 'Notifications', 'href' => '/notifications/templates.php', 'icon' => 'notifications', 'route' => 'notifications'],
-            ['label' => 'Reports', 'href' => '/reports/dashboard.php', 'icon' => 'reports', 'route' => 'reports'],
-            ['label' => 'Roles & Permissions', 'href' => '/roles/list.php', 'icon' => 'roles', 'route' => 'roles'],
-        ],
-        'System' => [
-            ['label' => 'Admin Profile', 'href' => '/profile/index.php', 'icon' => 'profile', 'route' => 'profile'],
-            ['label' => 'Settings', 'href' => '/settings/index.php', 'icon' => 'settings', 'route' => 'settings'],
+            ['label' => 'Reports',           'href' => '/reports/dashboard.php', 'icon' => 'reports', 'route' => 'reports', 'permission' => 'reports.view'],
+            ['label' => 'Roles & Permissions','href' => '/roles/list.php',       'icon' => 'roles',   'route' => 'roles',   'permission' => 'roles.view'],
         ],
     ];
 }

@@ -17,7 +17,7 @@ $pageTitle = 'Revenue Report';
 $pageEyebrow = 'Payments, balances, and collection health';
 $currentRoute = 'reports';
 $reportRoute = 'reports.revenue';
-$topbarAction = ['label' => 'Payments ledger', 'href' => '/payments/ledger.php'];
+$topbarAction = ['label' => 'Payments ledger', 'href' => '/payments/ledger.php', 'permission' => 'payments.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

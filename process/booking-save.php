@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Booking.php';
-require_once __DIR__ . '/../models/Notification.php';
+require_once __DIR__ . '/../models/Payment.php';
 
 $currentUser = require_login();
 $bookingId = trim((string) ($_POST['id'] ?? ''));
@@ -48,7 +48,16 @@ if (!is_array($booking) || trim((string) ($booking['id'] ?? '')) === '') {
     redirect_to($redirect);
 }
 
-Notification::syncBookingNotifications($booking, $previousBooking, (string) ($currentUser['name'] ?? 'Admin panel'));
+if ($bookingId === '' && (float) ($payload['amount_paid'] ?? 0) > 0.0) {
+    Payment::save([
+        'booking_id'  => $booking['id'],
+        'payment_date' => $booking['date'],
+        'method'      => $payload['channel'] !== '' ? $payload['channel'] : 'cash',
+        'amount'      => (float) $payload['amount_paid'],
+        'note'        => 'Recorded at booking intake.',
+        'recorded_by' => (string) ($currentUser['name'] ?? 'Admin panel'),
+    ]);
+}
 
 flash_set('booking_success', $bookingId === '' ? 'Booking created successfully.' : 'Booking updated successfully.');
 clear_old_input();

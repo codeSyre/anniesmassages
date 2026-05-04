@@ -17,7 +17,7 @@ $flashMessage = flash_get('booking_success');
 $pageTitle = 'Booking Details';
 $pageEyebrow = $booking['reference'];
 $currentRoute = 'bookings';
-$topbarAction = ['label' => 'Payment details', 'href' => '/payments/view.php?booking_id=' . urlencode($booking['id'])];
+$topbarAction = ['label' => 'Payment details', 'href' => '/payments/view.php?booking_id=' . urlencode($booking['id']), 'permission' => 'payments.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

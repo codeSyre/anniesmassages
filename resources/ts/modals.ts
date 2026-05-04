@@ -59,3 +59,36 @@ if (confirmDialog !== null) {
   confirmDialog.addEventListener('close', resetDialog);
   confirmDialog.addEventListener('cancel', resetDialog);
 }
+
+document.querySelectorAll<HTMLButtonElement>('[data-dialog-trigger]').forEach((trigger) => {
+  trigger.addEventListener('click', () => {
+    const dialogId = trigger.dataset.dialogTrigger;
+
+    if (typeof dialogId !== 'string' || dialogId.trim() === '') {
+      return;
+    }
+
+    const dialog = document.querySelector<HTMLDialogElement>(`[data-dialog-id="${dialogId}"]`);
+
+    if (dialog === null) {
+      return;
+    }
+
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+      return;
+    }
+
+    dialog.setAttribute('open', 'open');
+  });
+});
+
+document.querySelectorAll<HTMLElement>('[data-dialog-close]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const dialog = button.closest('dialog');
+
+    if (dialog instanceof HTMLDialogElement) {
+      dialog.close();
+    }
+  });
+});

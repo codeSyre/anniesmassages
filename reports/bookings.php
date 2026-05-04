@@ -17,7 +17,7 @@ $pageTitle = 'Bookings Report';
 $pageEyebrow = 'Demand, status mix, and service traction';
 $currentRoute = 'reports';
 $reportRoute = 'reports.bookings';
-$topbarAction = ['label' => 'Booking list', 'href' => '/bookings/list.php'];
+$topbarAction = ['label' => 'Booking list', 'href' => '/bookings/list.php', 'permission' => 'bookings.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

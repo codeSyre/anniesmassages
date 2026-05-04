@@ -10,19 +10,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect_to('/payroll/dashboard.php');
 }
 
-$action = trim((string) ($_POST['action'] ?? 'generate'));
+$action   = trim((string) ($_POST['action'] ?? 'generate'));
 $returnTo = trim((string) ($_POST['return_to'] ?? '/payroll/history.php'));
-$actor = (string) (current_user()['name'] ?? 'Admin panel');
+$actor    = (string) (current_user()['name'] ?? 'Admin panel');
 
+// -------------------------------------------------------------------------
+// Generate a new payroll run
+// -------------------------------------------------------------------------
 if ($action === 'generate') {
     $payload = [
-        'label' => trim((string) ($_POST['label'] ?? '')),
-        'period_start' => trim((string) ($_POST['period_start'] ?? '')),
-        'period_end' => trim((string) ($_POST['period_end'] ?? '')),
-        'selected_staff' => $_POST['selected_staff'] ?? [],
-        'notes' => trim((string) ($_POST['notes'] ?? '')),
-        'adjustments' => is_array($_POST['adjustments'] ?? null) ? $_POST['adjustments'] : [],
-        'staff_notes' => is_array($_POST['staff_notes'] ?? null) ? $_POST['staff_notes'] : [],
+        'label'         => trim((string) ($_POST['label']        ?? '')),
+        'period_start'  => trim((string) ($_POST['period_start'] ?? '')),
+        'period_end'    => trim((string) ($_POST['period_end']   ?? '')),
+        'selected_staff'=> $_POST['selected_staff'] ?? [],
+        'notes'         => trim((string) ($_POST['notes']        ?? '')),
+        'adjustments'   => is_array($_POST['adjustments']  ?? null) ? $_POST['adjustments']  : [],
+        'staff_notes'   => is_array($_POST['staff_notes']  ?? null) ? $_POST['staff_notes']  : [],
     ];
 
     $errors = Payroll::validateRunPayload($payload);
@@ -33,26 +36,40 @@ if ($action === 'generate') {
         redirect_to('/payroll/run.php');
     }
 
-    $run = Payroll::createRun($payload, $actor);
+    try {
+        $run = Payroll::createRun($payload, $actor);
+    } catch (Throwable $e) {
+        flash_set('payroll_run_errors', ['_db' => 'Failed to save payroll run. Please try again.']);
+        remember_old_input($payload);
+        redirect_to('/payroll/run.php');
+    }
+
     clear_old_input();
     flash_set('payroll_success', 'Payroll run created successfully.');
-
     redirect_to('/payroll/history.php?id=' . urlencode($run['id']));
 }
 
+// -------------------------------------------------------------------------
+// Transition an existing run (finalize / pay)
+// -------------------------------------------------------------------------
 $runId = trim((string) ($_POST['run_id'] ?? ''));
 
 if ($runId === '') {
     redirect_to('/payroll/history.php');
 }
 
-$run = Payroll::transitionRun($runId, $action, $actor);
+try {
+    $run = Payroll::transitionRun($runId, $action, $actor);
+} catch (Throwable $e) {
+    flash_set('payroll_error', 'Could not update payroll run. Please try again.');
+    redirect_to($returnTo);
+}
 
 if ($run !== null) {
     flash_set('payroll_success', match ($action) {
         'finalize' => 'Payroll run finalized successfully.',
-        'pay' => 'Payroll run marked as paid.',
-        default => 'Payroll run updated.',
+        'pay'      => 'Payroll run marked as paid.',
+        default    => 'Payroll run updated.',
     });
 }
 

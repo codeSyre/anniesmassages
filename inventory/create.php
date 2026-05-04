@@ -8,6 +8,8 @@ require_permission('inventory.manage');
 
 $errors = flash_get('inventory_item_errors', []);
 $serviceOptions = Inventory::serviceOptions();
+$categories = Inventory::categories();
+$locations = Inventory::locations();
 $selectedServices = old_input('used_in_services', []);
 $selectedServices = is_array($selectedServices) ? $selectedServices : [];
 
@@ -50,7 +52,12 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Category</span>
-                            <input type="text" name="category" value="<?= e((string) old_input('category', 'Consumables')) ?>" placeholder="Oils, Linens, Topicals">
+                            <input type="text" name="category" value="<?= e((string) old_input('category', 'Consumables')) ?>" list="category-options" autocomplete="off">
+                            <datalist id="category-options">
+                                <?php foreach ($categories as $cat): ?>
+                                    <option value="<?= e($cat) ?>">
+                                <?php endforeach; ?>
+                            </datalist>
                             <?php if (isset($errors['category'])): ?><small><?= e($errors['category']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
@@ -83,14 +90,19 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                     </div>
 
-                    <label class="field">
-                        <span>Used in services</span>
-                        <select name="used_in_services[]" multiple>
+                    <fieldset class="field field-checkgroup">
+                        <legend>Used in services</legend>
+                        <?php if ($serviceOptions === []): ?>
+                            <p class="field-empty-note">No services created yet.</p>
+                        <?php else: ?>
                             <?php foreach ($serviceOptions as $service): ?>
-                                <option value="<?= e($service['id']) ?>" <?= in_array($service['id'], $selectedServices, true) ? 'selected' : '' ?>><?= e($service['name']) ?></option>
+                                <label class="check-item">
+                                    <input type="checkbox" name="used_in_services[]" value="<?= e($service['id']) ?>" <?= in_array($service['id'], $selectedServices, true) ? 'checked' : '' ?>>
+                                    <span><?= e($service['name']) ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php endif; ?>
+                    </fieldset>
 
                     <label class="field">
                         <span>Notes</span>

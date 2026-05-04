@@ -111,29 +111,12 @@ final class Booking
             }
         }
 
-        $customers = [
-            'cust-rudo' => ['id' => 'cust-rudo', 'name' => 'Rudo Ncube', 'phone' => '+263 77 100 2001', 'preference' => 'Light pressure, lavender oil'],
-            'cust-lauren' => ['id' => 'cust-lauren', 'name' => 'Lauren Price', 'phone' => '+263 77 100 2002', 'preference' => 'Deep tissue shoulders'],
-            'cust-angela' => ['id' => 'cust-angela', 'name' => 'Angela Banda', 'phone' => '+263 77 100 2003', 'preference' => 'Warm room, minimal scent'],
-            'cust-james-linda' => ['id' => 'cust-james-linda', 'name' => 'James & Linda', 'phone' => '+263 77 100 2004', 'preference' => 'Dual room setup'],
-            'cust-chipo' => ['id' => 'cust-chipo', 'name' => 'Chipo Nyoni', 'phone' => '+263 77 100 2005', 'preference' => 'Midday availability'],
-        ];
+        $customers = [];
 
         if (class_exists('Customer')) {
             foreach (Customer::rawAll() as $customer) {
                 $customers[(string) $customer['id']] = [
                     'id' => (string) ($customer['id'] ?? ''),
-                    'name' => (string) ($customer['name'] ?? 'Guest'),
-                    'phone' => (string) ($customer['phone'] ?? ''),
-                    'email' => (string) ($customer['email'] ?? ''),
-                    'preference' => (string) ($customer['preference'] ?? ''),
-                    'status' => (string) ($customer['status'] ?? 'active'),
-                ];
-            }
-        } else {
-            foreach ($_SESSION['customer_records'] ?? [] as $id => $customer) {
-                $customers[$id] = [
-                    'id' => (string) ($customer['id'] ?? $id),
                     'name' => (string) ($customer['name'] ?? 'Guest'),
                     'phone' => (string) ($customer['phone'] ?? ''),
                     'email' => (string) ($customer['email'] ?? ''),

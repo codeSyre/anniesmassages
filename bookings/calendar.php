@@ -11,7 +11,7 @@ $days = Booking::calendarDays();
 $pageTitle = 'Booking Calendar';
 $pageEyebrow = 'Availability view';
 $currentRoute = 'bookings';
-$topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php'];
+$topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

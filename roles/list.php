@@ -19,7 +19,7 @@ $errors = flash_get('role_errors', []);
 $pageTitle = 'Roles & Permissions';
 $pageEyebrow = 'Access control';
 $currentRoute = 'roles';
-$topbarAction = ['label' => 'Create role', 'href' => '/roles/create.php'];
+$topbarAction = ['label' => 'Create role', 'href' => '/roles/create.php', 'permission' => 'roles.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

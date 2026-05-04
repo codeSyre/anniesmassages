@@ -64,7 +64,29 @@ final class Payment
 
     public static function methods(): array
     {
-        return ['cash', 'mobile_money', 'bank_transfer', 'card', 'other'];
+        return ['ecocash', 'innbucks', 'zimswitch', 'bank_transfer', 'visa_mastercard', 'cash'];
+    }
+
+    public static function methodLabels(): array
+    {
+        return [
+            'ecocash' => 'Ecocash',
+            'innbucks' => 'Innbucks',
+            'zimswitch' => 'Zimswitch',
+            'bank_transfer' => 'Bank Transfer',
+            'visa_mastercard' => 'Visa/Mastercard',
+            'cash' => 'Cash',
+            'mobile_money' => 'Ecocash',
+            'card' => 'Visa/Mastercard',
+            'other' => 'Cash',
+        ];
+    }
+
+    public static function methodLabel(string $method): string
+    {
+        $labels = self::methodLabels();
+
+        return $labels[$method] ?? ucwords(str_replace('_', ' ', $method));
     }
 
     public static function statuses(): array
@@ -142,6 +164,10 @@ final class Payment
         }
 
         foreach ($payments as $payment) {
+            if (!array_key_exists($payment['method'], $methodBreakdown)) {
+                $methodBreakdown[$payment['method']] = 0.0;
+            }
+
             $methodBreakdown[$payment['method']] += (float) $payment['amount'];
         }
 
@@ -176,6 +202,11 @@ final class Payment
 
         foreach ($payments as $payment) {
             $amount = (float) $payment['amount'];
+
+            if (!array_key_exists($payment['method'], $methodTotals)) {
+                $methodTotals[$payment['method']] = 0.0;
+            }
+
             $methodTotals[$payment['method']] += $amount;
 
             if ($payment['payment_status'] === 'refunded') {
@@ -217,7 +248,7 @@ final class Payment
                 'Customer' => $payment['customer']['name'] ?? '',
                 'Service' => $payment['service']['name'] ?? '',
                 'Therapist' => $payment['staff']['name'] ?? '',
-                'Method' => str_replace('_', ' ', $payment['method']),
+                'Method' => self::methodLabel((string) $payment['method']),
                 'Amount' => number_format((float) $payment['amount'], 2, '.', ''),
                 'Status' => $payment['payment_status'],
                 'Note' => $payment['note'],
@@ -237,6 +268,10 @@ final class Payment
 
         if (!is_numeric((string) ($payload['amount'] ?? '')) || (float) ($payload['amount'] ?? 0) <= 0) {
             $errors['amount'] = 'Amount must be greater than zero.';
+        }
+
+        if (!in_array((string) ($payload['method'] ?? ''), self::methods(), true)) {
+            $errors['method'] = 'Select a valid payment method.';
         }
 
         $bookingId = trim((string) ($payload['booking_id'] ?? ''));
@@ -264,7 +299,7 @@ final class Payment
         return $errors;
     }
 
-    public static function save(array $payload): array
+    public static function save(array $payload): ?array
     {
         $bookingId = (string) $payload['booking_id'];
         $booking = Booking::find($bookingId);
@@ -273,10 +308,107 @@ final class Payment
             throw new RuntimeException('Booking not found.');
         }
 
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            mysqli_begin_transaction($connection);
+
+            try {
+                $existingRows = self::databaseRecordsForBooking($connection, $bookingId);
+
+                if ($existingRows === [] && (float) $booking['amount_paid'] > 0.0) {
+                    $openingReference = self::nextReference($connection);
+                    $openingStatement = self::prepare(
+                        $connection,
+                        'INSERT INTO payments (
+                            id, reference, booking_id, payment_date, method, amount, payment_status, note, recorded_by,
+                            external_reference, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW())',
+                        'sssssdsss',
+                        [
+                            self::nextId(),
+                            $openingReference,
+                            $booking['id'],
+                            $booking['date'],
+                            'cash',
+                            round((float) $booking['amount_paid'], 2),
+                            (string) $booking['payment_status'],
+                            'Imported from booking intake before the ledger module was opened.',
+                            'System import',
+                        ]
+                    );
+
+                    if (!$openingStatement instanceof mysqli_stmt) {
+                        throw new RuntimeException('Unable to import the opening payment row.');
+                    }
+                    $openingStatement->close();
+                }
+
+                $paymentId = self::nextId();
+                $paymentReference = self::nextReference($connection);
+                $paymentStatement = self::prepare(
+                    $connection,
+                    'INSERT INTO payments (
+                        id, reference, booking_id, payment_date, method, amount, payment_status, note, recorded_by,
+                        external_reference, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NOW(), NOW())',
+                    'sssssdsss',
+                    [
+                        $paymentId,
+                        $paymentReference,
+                        $booking['id'],
+                        (string) $payload['payment_date'],
+                        (string) $payload['method'],
+                        round((float) $payload['amount'], 2),
+                        'partial',
+                        trim((string) ($payload['note'] ?? '')),
+                        trim((string) ($payload['recorded_by'] ?? 'Admin panel')),
+                    ]
+                );
+
+                if (!$paymentStatement instanceof mysqli_stmt) {
+                    throw new RuntimeException('Unable to save payment.');
+                }
+                $paymentStatement->close();
+
+                $updatedPayments = self::databaseRecordsForBooking($connection, $bookingId);
+                $amountPaid = array_sum(array_map(static fn (array $payment): float => (float) ($payment['amount'] ?? 0), $updatedPayments));
+                $paymentStatus = self::statusForTotals((float) $booking['amount_total'], $amountPaid);
+
+                $updatedBooking = Booking::applyPaymentSummary($bookingId, $amountPaid, $paymentStatus, [
+                    'label' => 'Payment recorded',
+                    'meta' => sprintf(
+                        '%s captured via %s on %s',
+                        format_money((float) $payload['amount']),
+                        str_replace('_', ' ', (string) $payload['method']),
+                        date('j M Y', strtotime((string) $payload['payment_date']))
+                    ),
+                    'tone' => $paymentStatus === 'paid' ? 'success' : 'warning',
+                ]);
+
+                if (!is_array($updatedBooking)) {
+                    throw new RuntimeException('Unable to sync the booking payment summary.');
+                }
+
+                mysqli_commit($connection);
+
+                return self::find($paymentId);
+            } catch (Throwable $exception) {
+                mysqli_rollback($connection);
+                error_log('Payment save failed: ' . $exception->getMessage());
+
+                return null;
+            }
+        }
+
+        if (function_exists('db_configured') && db_configured()) {
+            return null;
+        }
+
         $records = $_SESSION['payment_records'] ?? [];
 
         if (self::persistentPaymentsForBooking($bookingId) === [] && (float) $booking['amount_paid'] > 0) {
-            $openingId = self::nextIdFromRecords($records);
+            $openingId = self::nextLegacyIdFromRecords($records);
             $records[$openingId] = [
                 'id' => $openingId,
                 'reference' => 'PMT-' . preg_replace('/\D+/', '', $openingId),
@@ -290,7 +422,7 @@ final class Payment
             ];
         }
 
-        $paymentId = self::nextIdFromRecords($records);
+        $paymentId = self::nextLegacyIdFromRecords($records);
         $records[$paymentId] = [
             'id' => $paymentId,
             'reference' => 'PMT-' . preg_replace('/\D+/', '', $paymentId),
@@ -328,11 +460,6 @@ final class Payment
         return array_sum(array_map(static fn (array $payment): float => (float) $payment['amount'], self::forBooking($bookingId)));
     }
 
-    private static function storedPaymentsForBooking(array $records, string $bookingId): array
-    {
-        return array_values(array_filter($records, static fn (array $payment): bool => (string) ($payment['booking_id'] ?? '') === $bookingId));
-    }
-
     private static function persistentPaymentsForBooking(string $bookingId): array
     {
         return array_values(array_filter(
@@ -356,6 +483,43 @@ final class Payment
 
     private static function mergedRecords(): array
     {
+        $databaseRecords = self::databaseRecords();
+
+        if ($databaseRecords !== null) {
+            $records = [];
+
+            foreach ($databaseRecords as $payment) {
+                $records[$payment['id']] = $payment;
+            }
+
+            $bookingCoverage = [];
+
+            foreach ($records as $payment) {
+                $bookingCoverage[(string) ($payment['booking_id'] ?? '')] = true;
+            }
+
+            foreach (Booking::all() as $booking) {
+                if ((float) $booking['amount_paid'] <= 0.0 || isset($bookingCoverage[$booking['id']])) {
+                    continue;
+                }
+
+                $syntheticId = 'PAYI-' . $booking['id'];
+                $records[$syntheticId] = self::normalizeRecord([
+                    'id' => $syntheticId,
+                    'reference' => 'PMT-IMPORT',
+                    'booking_id' => $booking['id'],
+                    'payment_date' => $booking['date'],
+                    'method' => 'cash',
+                    'amount' => round((float) $booking['amount_paid'], 2),
+                    'note' => 'Imported from booking intake before the ledger module was opened.',
+                    'recorded_by' => 'System import',
+                    'payment_status' => $booking['payment_status'],
+                ], $booking);
+            }
+
+            return array_values($records);
+        }
+
         $records = self::baseRecords();
 
         foreach ($_SESSION['payment_records'] ?? [] as $id => $payment) {
@@ -379,7 +543,7 @@ final class Payment
                 'reference' => 'PMT-IMPORT',
                 'booking_id' => $booking['id'],
                 'payment_date' => $booking['date'],
-                'method' => 'other',
+                'method' => 'cash',
                 'amount' => round((float) $booking['amount_paid'], 2),
                 'note' => 'Imported from booking intake before the ledger module was opened.',
                 'recorded_by' => 'System import',
@@ -388,6 +552,66 @@ final class Payment
         }
 
         return array_map(static fn (array $payment): array => self::normalizeRecord($payment), array_values($records));
+    }
+
+    private static function databaseRecords(): ?array
+    {
+        $connection = self::connection();
+
+        if (!$connection instanceof mysqli) {
+            return null;
+        }
+
+        $result = $connection->query('SELECT * FROM payments ORDER BY payment_date DESC, created_at DESC, reference DESC');
+
+        if (!$result instanceof mysqli_result) {
+            error_log('Unable to fetch payment records from database: ' . $connection->error);
+
+            return [];
+        }
+
+        $records = [];
+
+        while ($row = $result->fetch_assoc()) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $records[] = self::normalizeRecord($row);
+        }
+        $result->free();
+
+        return $records;
+    }
+
+    private static function databaseRecordsForBooking(mysqli $connection, string $bookingId): array
+    {
+        $statement = self::prepare(
+            $connection,
+            'SELECT * FROM payments WHERE booking_id = ? ORDER BY payment_date ASC, created_at ASC, reference ASC',
+            's',
+            [$bookingId]
+        );
+
+        if (!$statement instanceof mysqli_stmt) {
+            return [];
+        }
+
+        $result = $statement->get_result();
+        $rows = [];
+
+        if ($result instanceof mysqli_result) {
+            while ($row = $result->fetch_assoc()) {
+                if (is_array($row)) {
+                    $rows[] = $row;
+                }
+            }
+            $result->free();
+        }
+
+        $statement->close();
+
+        return $rows;
     }
 
     private static function normalizeRecord(array $payment, ?array $booking = null): array
@@ -408,6 +632,7 @@ final class Payment
             'recorded_by' => (string) ($payment['recorded_by'] ?? 'Admin panel'),
             'payment_status' => (string) ($booking['payment_status'] ?? ($payment['payment_status'] ?? 'unpaid')),
             'booking_status' => (string) ($booking['status'] ?? ($payment['booking_status'] ?? 'pending')),
+            'balance' => round((float) ($booking['balance'] ?? ($payment['balance'] ?? 0)), 2),
             'customer' => $booking['customer'] ?? ($payment['customer'] ?? ['id' => '', 'name' => 'Unknown guest']),
             'service' => $booking['service'] ?? ($payment['service'] ?? ['id' => '', 'name' => 'Unknown service']),
             'staff' => $booking['staff'] ?? ($payment['staff'] ?? ['id' => '', 'name' => 'Unassigned']),
@@ -415,7 +640,55 @@ final class Payment
         ];
     }
 
-    private static function nextIdFromRecords(array $records): string
+    private static function nextId(): string
+    {
+        if (function_exists('uuid_v4')) {
+            return uuid_v4();
+        }
+
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    private static function nextReference(?mysqli $connection = null): string
+    {
+        if ($connection instanceof mysqli) {
+            $result = $connection->query(
+                "SELECT reference
+                 FROM payments
+                 WHERE reference REGEXP '^PMT-[0-9]+$'
+                 ORDER BY CAST(SUBSTRING(reference, 5) AS UNSIGNED) DESC
+                 LIMIT 1"
+            );
+
+            if ($result instanceof mysqli_result) {
+                $row = $result->fetch_assoc() ?: [];
+                $result->free();
+                $lastReference = (string) ($row['reference'] ?? '');
+
+                if ($lastReference !== '') {
+                    $numeric = (int) preg_replace('/\D+/', '', $lastReference);
+
+                    return 'PMT-' . ($numeric + 1);
+                }
+            }
+        }
+
+        $max = 5000;
+
+        foreach (self::all() as $payment) {
+            $reference = (string) ($payment['reference'] ?? '');
+            $numeric = (int) preg_replace('/\D+/', '', $reference);
+            $max = max($max, $numeric);
+        }
+
+        return 'PMT-' . ($max + 1);
+    }
+
+    private static function nextLegacyIdFromRecords(array $records): string
     {
         $max = 5000;
 
@@ -430,6 +703,35 @@ final class Payment
         }
 
         return 'PAY' . ($max + 1);
+    }
+
+    private static function connection(): ?mysqli
+    {
+        return function_exists('db_connection') ? db_connection() : null;
+    }
+
+    private static function prepare(mysqli $connection, string $sql, string $types, array $params): ?mysqli_stmt
+    {
+        $statement = $connection->prepare($sql);
+
+        if (!$statement instanceof mysqli_stmt) {
+            error_log('Payment statement prepare failed: ' . $connection->error);
+
+            return null;
+        }
+
+        if ($params !== []) {
+            $statement->bind_param($types, ...$params);
+        }
+
+        if (!$statement->execute()) {
+            error_log('Payment statement execute failed: ' . $statement->error);
+            $statement->close();
+
+            return null;
+        }
+
+        return $statement;
     }
 
     private static function baseRecords(): array
@@ -451,7 +753,7 @@ final class Payment
                 'reference' => 'PMT-5002',
                 'booking_id' => 'BK1102',
                 'payment_date' => date('Y-m-d'),
-                'method' => 'card',
+                'method' => 'visa_mastercard',
                 'amount' => 20.00,
                 'note' => 'Deposit captured to hold the therapist block.',
                 'recorded_by' => 'Front desk',
@@ -462,7 +764,7 @@ final class Payment
                 'reference' => 'PMT-5003',
                 'booking_id' => 'BK1103',
                 'payment_date' => date('Y-m-d'),
-                'method' => 'mobile_money',
+                'method' => 'ecocash',
                 'amount' => 50.00,
                 'note' => 'First settlement captured before treatment start.',
                 'recorded_by' => 'Reception',
@@ -484,7 +786,7 @@ final class Payment
                 'reference' => 'PMT-5005',
                 'booking_id' => 'BK1105',
                 'payment_date' => date('Y-m-d', strtotime('+1 day')),
-                'method' => 'mobile_money',
+                'method' => 'ecocash',
                 'amount' => 15.00,
                 'note' => 'Deposit carried over after reschedule.',
                 'recorded_by' => 'WhatsApp desk',
@@ -495,7 +797,7 @@ final class Payment
                 'reference' => 'PMT-5006',
                 'booking_id' => 'BK1100',
                 'payment_date' => date('Y-m-d', strtotime('-1 day')),
-                'method' => 'card',
+                'method' => 'visa_mastercard',
                 'amount' => 45.00,
                 'note' => 'Refund issued after cancellation.',
                 'recorded_by' => 'Front desk',

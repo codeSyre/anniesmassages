@@ -11,7 +11,7 @@ $flashMessage = flash_get('profile_success');
 $pageTitle = 'Admin Profile';
 $pageEyebrow = 'Account and access';
 $currentRoute = 'profile';
-$topbarAction = ['label' => 'Roles & permissions', 'href' => '/roles/list.php'];
+$topbarAction = ['label' => 'Roles & permissions', 'href' => '/roles/list.php', 'permission' => 'roles.view'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

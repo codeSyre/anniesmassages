@@ -15,7 +15,7 @@ $flashMessage = flash_get('payroll_success');
 $pageTitle = 'Payroll';
 $pageEyebrow = 'Salary and payout operations';
 $currentRoute = 'payroll';
-$topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php'];
+$topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php', 'permission' => 'payroll.manage'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

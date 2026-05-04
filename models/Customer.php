@@ -225,15 +225,7 @@ final class Customer
             return self::find($customerId);
         }
 
-        if (function_exists('db_configured') && db_configured()) {
-            return null;
-        }
-
-        $records = $_SESSION['customer_records'] ?? [];
-        $records[$customerId] = $customer;
-        $_SESSION['customer_records'] = $records;
-
-        return self::find($customerId);
+        return null;
     }
 
     public static function saveNotes(string $customerId, array $payload): ?array
@@ -325,17 +317,7 @@ final class Customer
             return $databaseRecords;
         }
 
-        $records = self::baseRecords();
-
-        foreach ($records as $id => $customer) {
-            $records[$id] = self::finalizeRecord($customer);
-        }
-
-        foreach ($_SESSION['customer_records'] ?? [] as $id => $customer) {
-            $records[$id] = self::finalizeRecord(self::normalizePayload($customer, ['id' => $id]));
-        }
-
-        return $records;
+        return [];
     }
 
     private static function databaseRecords(): ?array
@@ -535,74 +517,4 @@ final class Customer
         return $statement;
     }
 
-    private static function baseRecords(): array
-    {
-        return [
-            'cust-rudo' => [
-                'id' => 'cust-rudo',
-                'first_name' => 'Rudo',
-                'last_name' => 'Ncube',
-                'name' => 'Rudo Ncube',
-                'phone' => '+263 77 100 2001',
-                'email' => 'rudo.ncube@example.com',
-                'preference' => 'Light pressure, lavender oil',
-                'admin_notes' => 'Prefers quieter treatment rooms and tends to rebook after travel weeks.',
-                'location' => 'Borrowdale',
-                'tags' => ['returning', 'wellness plan'],
-                'created_at' => '2026-03-08 09:10:00',
-            ],
-            'cust-lauren' => [
-                'id' => 'cust-lauren',
-                'first_name' => 'Lauren',
-                'last_name' => 'Price',
-                'name' => 'Lauren Price',
-                'phone' => '+263 77 100 2002',
-                'email' => 'lauren.price@example.com',
-                'preference' => 'Deep tissue shoulders',
-                'admin_notes' => 'Usually books after training blocks. Likes direct confirmation calls.',
-                'location' => 'Avondale',
-                'tags' => ['athlete', 'deposit required'],
-                'created_at' => '2026-02-19 14:45:00',
-            ],
-            'cust-angela' => [
-                'id' => 'cust-angela',
-                'first_name' => 'Angela',
-                'last_name' => 'Banda',
-                'name' => 'Angela Banda',
-                'phone' => '+263 77 100 2003',
-                'email' => 'angela.banda@example.com',
-                'preference' => 'Warm room, minimal scent',
-                'admin_notes' => 'Sensitive to heavily perfumed oils. Best experience in lower-traffic afternoon slots.',
-                'location' => 'Mount Pleasant',
-                'tags' => ['premium', 'allergy aware'],
-                'created_at' => '2026-01-11 11:30:00',
-            ],
-            'cust-james-linda' => [
-                'id' => 'cust-james-linda',
-                'first_name' => 'James',
-                'last_name' => 'Linda',
-                'name' => 'James Linda',
-                'phone' => '+263 77 100 2004',
-                'email' => 'james.linda@example.com',
-                'preference' => 'Dual room setup',
-                'admin_notes' => 'Books experience packages. Confirm arrival times and room prep in advance.',
-                'location' => 'Glen Lorne',
-                'tags' => ['couples', 'experience package'],
-                'created_at' => '2026-04-01 16:20:00',
-            ],
-            'cust-chipo' => [
-                'id' => 'cust-chipo',
-                'first_name' => 'Chipo',
-                'last_name' => 'Nyoni',
-                'name' => 'Chipo Nyoni',
-                'phone' => '+263 77 100 2005',
-                'email' => 'chipo.nyoni@example.com',
-                'preference' => 'Midday availability',
-                'admin_notes' => 'Schedule is flexible but often shifts within the same day. WhatsApp works best.',
-                'location' => 'CBD',
-                'tags' => ['reschedules often', 'midday'],
-                'created_at' => '2026-04-22 10:05:00',
-            ],
-        ];
-    }
 }

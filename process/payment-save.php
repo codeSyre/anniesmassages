@@ -2,7 +2,6 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Payment.php';
-require_once __DIR__ . '/../models/Notification.php';
 
 require_login();
 require_permission('payments.create');
@@ -35,7 +34,19 @@ if ($errors !== []) {
 }
 
 $payment = Payment::save($payload);
-Notification::logPaymentConfirmation($payment['booking_id'], $payment['reference'], (string) (current_user()['name'] ?? 'Admin panel'));
+
+if (!is_array($payment) || trim((string) ($payment['id'] ?? '')) === '') {
+    flash_set('payment_errors', ['payment' => 'We could not save this payment to the database.']);
+    remember_old_input($payload);
+    $redirect = '/payments/create.php';
+
+    if ($payload['booking_id'] !== '') {
+        $redirect .= '?booking_id=' . urlencode($payload['booking_id']);
+    }
+
+    redirect_to($redirect);
+}
+
 clear_old_input();
 flash_set('payment_success', 'Payment recorded successfully.');
 

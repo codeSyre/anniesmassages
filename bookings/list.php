@@ -12,13 +12,18 @@ $filters = [
 ];
 
 $bookings = Booking::all($filters);
+$totalBookings = count($bookings);
+$perPage = 10;
+$totalPages = max(1, (int) ceil($totalBookings / $perPage));
+$currentPage = max(1, min($totalPages, (int) ($_GET['page'] ?? 1)));
+$bookings = array_slice($bookings, ($currentPage - 1) * $perPage, $perPage);
 $stats = Booking::stats();
 $flashMessage = flash_get('booking_success');
 
 $pageTitle = 'Bookings';
 $pageEyebrow = 'Appointment lifecycle management';
 $currentRoute = 'bookings';
-$topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php'];
+$topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'];
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -123,14 +128,38 @@ require __DIR__ . '/../includes/header.php';
                                     <strong><?= e(format_money((float) $booking['amount_total'])) ?></strong>
                                     <span><?= e(ucfirst($booking['payment_status'])) ?> · Balance <?= e(format_money((float) $booking['balance'])) ?></span>
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/bookings/view.php?id=<?= e($booking['id']) ?>">View</a>
-                                    <a href="/bookings/edit.php?id=<?= e($booking['id']) ?>">Edit</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/bookings/view.php?id=<?= e($booking['id']) ?>" aria-label="View <?= e($booking['reference']) ?>" title="View">
+                                            <?= action_icon_svg('view') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/bookings/edit.php?id=<?= e($booking['id']) ?>" aria-label="Edit <?= e($booking['reference']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+            <?php endif; ?>
+
+            <?php if ($totalPages > 1): ?>
+                <div class="pagination">
+                    <?php if ($currentPage > 1): ?>
+                        <a class="pagination-btn" href="/bookings/list.php?<?= e(http_build_query(array_merge($filters, ['page' => $currentPage - 1]))) ?>">Previous</a>
+                    <?php else: ?>
+                        <span class="pagination-btn is-disabled">Previous</span>
+                    <?php endif; ?>
+
+                    <span class="pagination-info"><?= e((string) $currentPage) ?> of <?= e((string) $totalPages) ?></span>
+
+                    <?php if ($currentPage < $totalPages): ?>
+                        <a class="pagination-btn" href="/bookings/list.php?<?= e(http_build_query(array_merge($filters, ['page' => $currentPage + 1]))) ?>">Next</a>
+                    <?php else: ?>
+                        <span class="pagination-btn is-disabled">Next</span>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
         </section>
 

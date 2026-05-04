@@ -18,7 +18,7 @@ $pageTitle = 'Payroll Report';
 $pageEyebrow = 'Projected payout and run history';
 $currentRoute = 'reports';
 $reportRoute = 'reports.payroll';
-$topbarAction = ['label' => 'Payroll workspace', 'href' => '/payroll/dashboard.php'];
+$topbarAction = ['label' => 'Payroll workspace', 'href' => '/payroll/dashboard.php', 'permission' => 'payroll.manage'];
 
 require __DIR__ . '/../includes/header.php';
 ?>

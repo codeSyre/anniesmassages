@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Booking.php';
 require_once __DIR__ . '/../models/Service.php';
+require_once __DIR__ . '/../models/Payment.php';
 
 $currentUser = require_login();
 require_permission('bookings.create');
@@ -86,8 +87,13 @@ require __DIR__ . '/../includes/header.php';
                         </label>
 
                         <label class="field">
-                            <span>Channel</span>
-                            <input type="text" name="channel" value="<?= e((string) old_input('channel', 'front desk')) ?>" placeholder="front desk, web, phone">
+                            <span>Payment channel</span>
+                            <select name="channel">
+                                <option value="">— select channel —</option>
+                                <?php foreach (Payment::methods() as $method): ?>
+                                    <option value="<?= e($method) ?>" <?= old_input('channel') === $method ? 'selected' : '' ?>><?= e(Payment::methodLabel($method)) ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </label>
 
                         <label class="field">
