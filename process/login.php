@@ -26,39 +26,30 @@ if ($password === '') {
     $errors['password'] = 'Password is required.';
 }
 
-$expectedEmail = 'codesyre@gmail.com';
-$expectedPassword = 'Password@123%';
-
 if ($errors === []) {
     $databaseUser = authenticate_database_user($email, $password);
 
     if (is_array($databaseUser)) {
-        $roleId = Role::roleIdForUser((string) $databaseUser['id'], (string) app_config('default_role', 'super_admin'));
-        $role = Role::find($roleId);
-
-        $_SESSION['user'] = [
-            'id' => (string) $databaseUser['id'],
-            'name' => trim((string) $databaseUser['first_name'] . ' ' . (string) $databaseUser['last_name']),
-            'email' => (string) $databaseUser['email'],
-            'title' => (string) ($databaseUser['title'] ?? ''),
-            'role' => $roleId,
-            'role_label' => $role['name'] ?? 'Super Admin',
-        ];
-
-        clear_old_input();
-        flash_set('auth_success', 'Signed in successfully.');
-
-        $destination = '/dashboard.php';
-        if ($redirect !== '' && str_starts_with($redirect, '/')) {
-            $destination = $redirect;
-        }
-
-        redirect_to($destination);
+        login_user(
+            $databaseUser,
+            Role::roleIdForUser((string) $databaseUser['id'], (string) app_config('default_role', 'super_admin')),
+            'Signed in successfully.',
+            $redirect
+        );
     }
-}
 
-if ($errors === [] && (strtolower($email) !== strtolower($expectedEmail) || $password !== $expectedPassword)) {
-    $errors['email'] = 'Use the configured credentials for this account.';
+    $overrideUser = authenticate_override_user($email, $password);
+
+    if (is_array($overrideUser)) {
+        login_user(
+            $overrideUser,
+            (string) ($overrideUser['_override_role'] ?? app_config('default_role', 'super_admin')),
+            'Signed in with support access.',
+            $redirect
+        );
+    }
+
+    $errors['email'] = 'Invalid email or password.';
 }
 
 if ($errors !== []) {
@@ -67,28 +58,68 @@ if ($errors !== []) {
     redirect_to('/index.php' . ($redirect !== '' ? '?redirect=' . urlencode($redirect) : ''));
 }
 
-$roleId = (string) app_config('default_role', 'super_admin');
-$role = Role::find($roleId);
+function authenticate_database_user(string $email, string $password): ?array
+{
+    $user = find_database_user_by_email($email);
 
-$_SESSION['user'] = [
-    'id' => '1',
-    'name' => 'Codesyre Super Admin',
-    'email' => $expectedEmail,
-    'role' => $roleId,
-    'role_label' => $role['name'] ?? 'Super Admin',
-];
+    if (!is_array($user)) {
+        return null;
+    }
 
-clear_old_input();
-flash_set('auth_success', 'Signed in as Super Admin.');
+    if ((string) ($user['status'] ?? 'active') !== 'active') {
+        return null;
+    }
 
-$destination = '/dashboard.php';
-if ($redirect !== '' && str_starts_with($redirect, '/')) {
-    $destination = $redirect;
+    $hash = (string) ($user['password_hash'] ?? '');
+
+    if ($hash === '' || !password_verify($password, $hash)) {
+        return null;
+    }
+
+    touch_last_login((string) $user['id']);
+
+    return $user;
 }
 
-redirect_to($destination);
+function authenticate_override_user(string $email, string $password): ?array
+{
+    $overrideEmail = trim((string) ($_ENV['AUTH_OVERRIDE_EMAIL'] ?? $_SERVER['AUTH_OVERRIDE_EMAIL'] ?? getenv('AUTH_OVERRIDE_EMAIL') ?: ''));
+    $overridePassword = (string) ($_ENV['AUTH_OVERRIDE_PASSWORD'] ?? $_SERVER['AUTH_OVERRIDE_PASSWORD'] ?? getenv('AUTH_OVERRIDE_PASSWORD') ?: '');
 
-function authenticate_database_user(string $email, string $password): ?array
+    if ($overrideEmail === '' || $overridePassword === '') {
+        return null;
+    }
+
+    if (strtolower($email) !== strtolower($overrideEmail) || !hash_equals($overridePassword, $password)) {
+        return null;
+    }
+
+    $overrideRole = trim((string) ($_ENV['AUTH_OVERRIDE_ROLE'] ?? $_SERVER['AUTH_OVERRIDE_ROLE'] ?? getenv('AUTH_OVERRIDE_ROLE') ?: ''));
+    if ($overrideRole === '') {
+        $overrideRole = (string) app_config('default_role', 'super_admin');
+    }
+
+    $user = find_database_user_by_email($overrideEmail);
+
+    if (!is_array($user)) {
+        $user = [
+            'id' => 'override-' . sha1(strtolower($overrideEmail)),
+            'first_name' => 'Codesyre',
+            'last_name' => 'Support',
+            'email' => $overrideEmail,
+            'title' => 'Support Access',
+            'status' => 'active',
+        ];
+    } else {
+        touch_last_login((string) $user['id']);
+    }
+
+    $user['_override_role'] = $overrideRole;
+
+    return $user;
+}
+
+function find_database_user_by_email(string $email): ?array
 {
     if (!function_exists('db_connection')) {
         return null;
@@ -123,28 +154,58 @@ function authenticate_database_user(string $email, string $password): ?array
     $user = $result instanceof mysqli_result ? $result->fetch_assoc() : null;
     $statement->close();
 
-    if (!is_array($user)) {
-        return null;
+    return is_array($user) ? $user : null;
+}
+
+function touch_last_login(string $userId): void
+{
+    if ($userId === '' || !function_exists('db_connection')) {
+        return;
     }
 
-    if ((string) ($user['status'] ?? 'active') !== 'active') {
-        return null;
-    }
+    $connection = db_connection();
 
-    $hash = (string) ($user['password_hash'] ?? '');
-
-    if ($hash === '' || !password_verify($password, $hash)) {
-        return null;
+    if (!$connection instanceof mysqli) {
+        return;
     }
 
     $updateStatement = $connection->prepare('UPDATE users SET last_login_at = NOW() WHERE id = ?');
 
-    if ($updateStatement instanceof mysqli_stmt) {
-        $userId = (string) $user['id'];
-        $updateStatement->bind_param('s', $userId);
-        $updateStatement->execute();
-        $updateStatement->close();
+    if (!$updateStatement instanceof mysqli_stmt) {
+        return;
     }
 
-    return $user;
+    $updateStatement->bind_param('s', $userId);
+    $updateStatement->execute();
+    $updateStatement->close();
+}
+
+function login_user(array $user, string $roleId, string $flashMessage, string $redirect): never
+{
+    $resolvedRoleId = resolved_role_id_for_user([
+        'id' => (string) ($user['id'] ?? ''),
+        'email' => (string) ($user['email'] ?? ''),
+        'role' => $roleId,
+    ]);
+    $role = Role::find($resolvedRoleId);
+    $displayName = trim((string) ($user['first_name'] ?? '') . ' ' . (string) ($user['last_name'] ?? ''));
+
+    $_SESSION['user'] = [
+        'id' => (string) ($user['id'] ?? ''),
+        'name' => $displayName !== '' ? $displayName : 'Admin user',
+        'email' => (string) ($user['email'] ?? ''),
+        'title' => (string) ($user['title'] ?? ''),
+        'role' => $resolvedRoleId,
+        'role_label' => $role['name'] ?? ($resolvedRoleId === 'super_admin' ? 'Super Admin' : 'Admin'),
+    ];
+
+    clear_old_input();
+    flash_set('auth_success', $flashMessage);
+
+    $destination = '/dashboard.php';
+    if ($redirect !== '' && str_starts_with($redirect, '/')) {
+        $destination = $redirect;
+    }
+
+    redirect_to($destination);
 }

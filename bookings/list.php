@@ -11,6 +11,7 @@ $filters = [
     'search' => (string) ($_GET['search'] ?? ''),
 ];
 
+$hasBookings = Booking::all() !== [];
 $bookings = Booking::all($filters);
 $totalBookings = count($bookings);
 $perPage = 10;
@@ -23,7 +24,15 @@ $flashMessage = flash_get('booking_success');
 $pageTitle = 'Bookings';
 $pageEyebrow = 'Appointment lifecycle management';
 $currentRoute = 'bookings';
-$topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'];
+
+if ($hasBookings) {
+    $topbarActions = [
+        ['label' => 'New booking', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'],
+        ['label' => 'Open calendar', 'href' => '/bookings/calendar.php', 'permission' => 'bookings.view'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New booking', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -37,19 +46,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Bookings at the center</p>
-                <h1 class="hero-title">Control every appointment from intake to completion.</h1>
-                <p class="hero-copy">Use this module to create appointments, assign therapists, track balances, and keep the day clear of scheduling conflicts.</p>
+        <section class="module-hero<?= $hasBookings ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasBookings): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Bookings at the center</p>
+                    <h1 class="hero-title">Control every appointment from intake to completion.</h1>
+                    <p class="hero-copy">Use this module to create appointments, assign therapists, track balances, and keep the day clear of scheduling conflicts.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/bookings/create.php">Create booking</a>
-                    <a class="action-link is-secondary" href="/bookings/calendar.php">Open calendar</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/bookings/create.php">Create booking</a>
+                        <a class="action-link is-secondary" href="/bookings/calendar.php">Open calendar</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasBookings ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

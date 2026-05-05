@@ -31,9 +31,8 @@ $pageTitle = 'Sign In';
                 <div class="section-head auth-card-head">
                     <div>
                         <p class="section-kicker">Authentication</p>
-                        <h3>Sign in to the control room</h3>
+                        <h3>Sign in to your account</h3>
                     </div>
-                    <p>Use the configured super admin account or a staff login created from the admin dashboard.</p>
                 </div>
 
                 <form class="module-form" method="post" action="/process/login.php">
@@ -47,24 +46,14 @@ $pageTitle = 'Sign In';
 
                     <label class="field">
                         <span>Password</span>
-                        <input type="password" name="password" placeholder="Enter the configured super admin password">
+                        <input type="password" name="password" placeholder="Enter your account password">
                         <?php if (isset($errors['password'])): ?><small><?= e($errors['password']) ?></small><?php endif; ?>
                     </label>
 
-                    <div class="auth-meta">
-                        <span class="badge badge-warning">Super admin</span>
-                        <p>New staff accounts use their saved email address and the default password assigned during profile creation, then reset it from their profile.</p>
-                    </div>
-
                     <div class="button-row auth-button-row">
-                        <button class="button-primary auth-submit" type="submit">Enter as Super Admin</button>
+                        <button class="button-primary auth-submit" type="submit">Signin</button>
                     </div>
                 </form>
-
-                <div class="auth-footnote">
-                    <strong>Configured account</strong>
-                    <span>`codesyre@gmail.com` authenticates as the always-allowed `super_admin` account. Staff accounts use the default member password until changed.</span>
-                </div>
             </article>
         </section>
     </main>

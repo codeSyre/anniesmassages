@@ -42,6 +42,11 @@ body.auth-body {
   place-items: center;
 }
 
+body.status-body {
+  display: flex;
+  flex-direction: column;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -212,6 +217,13 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.topbar-action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .menu-toggle,
@@ -439,11 +451,131 @@ button {
   width: 100%;
 }
 
+.status-shell {
+  flex: 1;
+  width: min(1120px, calc(100vw - 36px));
+  margin: 0 auto;
+  padding: 40px 0 24px;
+}
+
+.status-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 22px;
+}
+
+.status-panel,
+.status-side-card {
+  background: rgba(16, 18, 21, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+}
+
+.status-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 107, 107, 0.13), transparent 36%),
+    radial-gradient(circle at left center, rgba(0, 174, 239, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(16, 27, 31, 0.98), rgba(12, 18, 22, 0.98));
+}
+
+.status-side-card {
+  padding: 24px;
+}
+
+.status-kicker,
+.status-title,
+.status-copy,
+.status-note,
+.status-detail-card strong,
+.status-detail-card span {
+  margin: 0;
+}
+
+.status-kicker {
+  margin-top: 16px;
+}
+
+.status-title {
+  margin-top: 14px;
+  max-width: 14ch;
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  line-height: 0.98;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.status-copy {
+  margin-top: 18px;
+  max-width: 56ch;
+  color: var(--color-muted);
+  line-height: 1.75;
+}
+
+.status-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.status-detail-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  background: rgba(10, 14, 17, 0.62);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+}
+
+.status-detail-card span {
+  color: var(--color-muted-soft);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-detail-card strong {
+  font-size: 1rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.status-note {
+  margin-top: 22px;
+  padding: 16px 18px;
+  color: var(--color-muted);
+  line-height: 1.65;
+  background: rgba(10, 14, 17, 0.56);
+  border: 1px solid rgba(86, 199, 255, 0.1);
+  border-radius: 18px;
+}
+
+.status-link-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
   gap: 20px;
   margin-bottom: 22px;
+}
+
+.hero.hero-compact {
+  grid-template-columns: 1fr;
 }
 
 .hero-panel,
@@ -540,6 +672,10 @@ button {
   gap: 14px;
 }
 
+.focus-stack.focus-stack-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .focus-card {
   padding: 20px;
 }
@@ -558,9 +694,178 @@ button {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.income-trend-card {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.income-trend-head {
+  align-items: start;
+}
+
+.income-trend-filter {
+  align-items: end;
+}
+
+.income-trend-filter-field {
+  display: grid;
+  gap: 8px;
+  color: var(--color-muted-soft);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.income-trend-filter-field input {
+  min-width: 220px;
+}
+
+.income-trend-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.income-trend-visual,
+.income-trend-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.income-trend-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.income-trend-chart-shell {
+  position: relative;
+  padding: 18px 18px 12px 72px;
+  border-radius: 24px;
+  border: 1px solid rgba(86, 199, 255, 0.1);
+  background:
+    radial-gradient(circle at top left, rgba(86, 199, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(14, 18, 21, 0.98), rgba(10, 14, 17, 0.98));
+  overflow: hidden;
+}
+
+.income-trend-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.income-trend-grid-line {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+  stroke-dasharray: 5 8;
+}
+
+.income-trend-grid-line-mid {
+  stroke: rgba(86, 199, 255, 0.14);
+}
+
+.income-trend-area {
+  fill: rgba(86, 199, 255, 0.16);
+}
+
+.income-trend-line {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 10px 24px rgba(0, 174, 239, 0.18));
+}
+
+.income-trend-hover-guide {
+  stroke: rgba(86, 199, 255, 0.34);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 8;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.income-trend-chart-shell.is-interacting .income-trend-hover-guide {
+  opacity: 1;
+}
+
+.income-trend-tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  gap: 4px;
+  min-width: 120px;
+  padding: 10px 12px;
+  border: 1px solid rgba(86, 199, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(6, 11, 15, 0.96);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.36);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 18px));
+}
+
+.income-trend-tooltip.is-below {
+  transform: translate(-50%, 18px);
+}
+
+.income-trend-tooltip strong,
+.income-trend-tooltip span {
+  margin: 0;
+}
+
+.income-trend-tooltip strong {
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+.income-trend-tooltip span {
+  color: var(--color-muted-soft);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.income-trend-axis {
+  position: absolute;
+  left: 18px;
+  color: var(--color-muted-soft);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.income-trend-axis-top {
+  top: 14px;
+}
+
+.income-trend-axis-middle {
+  top: calc(50% - 0.55rem);
+}
+
+.income-trend-axis-bottom {
+  bottom: 48px;
+}
+
+.income-trend-xaxis {
+  display: grid;
+  grid-template-columns: repeat(var(--income-day-count), minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 8px 0 72px;
+  color: var(--color-muted-soft);
+  font-size: 0.76rem;
+}
+
+.income-trend-xaxis span {
+  text-align: center;
 }
 
 .card {
@@ -670,6 +975,30 @@ td {
   vertical-align: top;
 }
 
+.table-row-link {
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.table-row-link:hover td,
+.table-row-link:focus-visible td {
+  background: rgba(0, 150, 199, 0.08);
+}
+
+.table-row-link:focus-visible {
+  outline: none;
+}
+
+.table-row-link:focus-visible td:first-child {
+  border-top-left-radius: 14px;
+  border-bottom-left-radius: 14px;
+}
+
+.table-row-link:focus-visible td:last-child {
+  border-top-right-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
 th {
   color: var(--color-muted-soft);
   font-size: 0.78rem;
@@ -733,9 +1062,17 @@ td strong {
   margin-bottom: 24px;
 }
 
+.module-hero.module-hero-compact {
+  grid-template-columns: 1fr;
+}
+
 .module-stat-grid {
   display: grid;
   gap: 14px;
+}
+
+.module-stat-grid.module-stat-grid-quad {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .mini-stat-card {
@@ -1771,8 +2108,13 @@ td strong {
   .split-layout,
   .detail-grid,
   .auth-layout,
+  .status-layout,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .module-stat-grid.module-stat-grid-quad {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1812,13 +2154,24 @@ td strong {
     flex-wrap: wrap;
   }
 
+  .topbar-action-group {
+    width: 100%;
+  }
+
   .auth-shell {
     width: min(720px, calc(100vw - 28px));
     padding: 24px 0;
   }
 
+  .status-shell {
+    width: min(720px, calc(100vw - 28px));
+    padding: 24px 0 16px;
+  }
+
   .auth-showcase,
-  .auth-card {
+  .auth-card,
+  .status-panel,
+  .status-side-card {
     padding: 24px;
   }
 
@@ -1836,7 +2189,31 @@ td strong {
     grid-template-columns: 1fr;
   }
 
+  .module-stat-grid.module-stat-grid-quad {
+    grid-template-columns: 1fr;
+  }
+
+  .income-trend-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .income-trend-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .income-trend-xaxis {
+    font-size: 0.68rem;
+  }
+
+  .focus-stack.focus-stack-grid {
+    grid-template-columns: 1fr;
+  }
+
   .auth-highlights {
+    grid-template-columns: 1fr;
+  }
+
+  .status-detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1845,7 +2222,9 @@ td strong {
   .activity-card,
   .card,
   .focus-card,
-  .action-card {
+  .action-card,
+  .status-panel,
+  .status-side-card {
     border-radius: 22px;
   }
 

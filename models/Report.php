@@ -8,10 +8,11 @@ require_once __DIR__ . '/Staff.php';
 
 final class Report
 {
-    public static function dashboardOverview(): array
+    public static function dashboardOverview(?string $selectedRevenueMonth = null): array
     {
         $today = date('Y-m-d');
-        $bookings = array_values(array_filter(Booking::all(), static fn (array $booking): bool => $booking['date'] === $today));
+        $allBookings = Booking::all();
+        $bookings = array_values(array_filter($allBookings, static fn (array $booking): bool => $booking['date'] === $today));
         usort($bookings, static fn (array $left, array $right): int => strcmp($left['sort_key'], $right['sort_key']));
 
         $reconciliation = Payment::reconciliation($today);
@@ -23,10 +24,16 @@ final class Report
         $capacity = array_sum(array_map(static fn (array $member): int => self::capacityFromLabel((string) ($member['capacity'] ?? '0')), $activeStaff));
         $openSlots = max($capacity - count($bookings), 0);
         $currentPayroll = Payroll::previewRun(Payroll::currentPeriod() + ['selected_staff' => []]);
-        $paymentsToday = array_slice(Payment::all(['date_from' => $today, 'date_to' => $today]), 0, 2);
+        $incomeTrend = self::dashboardIncomeTrend($selectedRevenueMonth);
+        $inventoryAttention = self::dashboardInventoryAttention();
+
+        $operationBookings = array_slice($pendingToday, 0, 5);
 
         $operations = array_map(static function (array $booking): array {
             return [
+                'id' => (string) $booking['id'],
+                'href' => '/bookings/view.php?id=' . urlencode((string) $booking['id']),
+                'reference' => (string) ($booking['reference'] ?? ''),
                 'time' => $booking['time'],
                 'title' => $booking['service']['name'] ?? 'Service booking',
                 'customer' => $booking['customer']['name'] ?? 'Guest',
@@ -39,45 +46,10 @@ final class Report
                     default => 'info',
                 },
             ];
-        }, array_slice($bookings, 0, 5));
-
-        $recentActivity = [];
-        foreach ($paymentsToday as $payment) {
-            $recentActivity[] = [
-                'title' => 'Payment recorded',
-                'description' => sprintf(
-                    '%s settled %s for %s.',
-                    $payment['customer']['name'] ?? 'A guest',
-                    format_money((float) $payment['amount']),
-                    $payment['service']['name'] ?? 'a service'
-                ),
-                'time' => date('j M Y', strtotime($payment['payment_date'])),
-            ];
-        }
-
-        foreach (array_slice($lowStockItems, 0, 2) as $item) {
-            $recentActivity[] = [
-                'title' => 'Inventory alert',
-                'description' => sprintf(
-                    '%s is at %s %s against a reorder level of %s.',
-                    $item['name'],
-                    format_quantity((float) $item['on_hand']),
-                    $item['unit'],
-                    format_quantity((float) $item['reorder_level'])
-                ),
-                'time' => 'Needs attention',
-            ];
-        }
-
-        if ($recentActivity === []) {
-            $recentActivity[] = [
-                'title' => 'System quiet',
-                'description' => 'No new finance or stock changes have landed yet today.',
-                'time' => 'Just now',
-            ];
-        }
+        }, array_slice($operationBookings, 0, 5));
 
         return [
+            'hasBookings' => Booking::all() !== [],
             'headline' => [
                 'eyebrow' => 'Today at a glance',
                 'title' => 'Operational clarity for a calm day of service.',
@@ -110,13 +82,14 @@ final class Report
                 ],
             ],
             'operations' => $operations,
+            'incomeTrend' => $incomeTrend,
+            'inventoryAttention' => $inventoryAttention,
             'quickActions' => [
                 ['label' => 'New Booking', 'href' => '/bookings/create.php', 'description' => 'Create and assign a new appointment.'],
                 ['label' => 'Open Calendar', 'href' => '/scheduling/calendar.php', 'description' => 'Check staff availability and daily slots.'],
                 ['label' => 'Record Payment', 'href' => '/payments/create.php', 'description' => 'Capture partial or full payment quickly.'],
                 ['label' => 'Check Reports', 'href' => '/reports/dashboard.php', 'description' => 'Open the cross-module analytics workspace.'],
             ],
-            'recentActivity' => array_slice($recentActivity, 0, 4),
             'focusPanels' => [
                 [
                     'title' => 'Revenue pulse',
@@ -135,6 +108,100 @@ final class Report
                 ],
             ],
         ];
+    }
+
+    private static function dashboardInventoryAttention(int $limit = 5): array
+    {
+        $items = Inventory::all();
+        if ($items === []) {
+            return [];
+        }
+
+        $flaggedItems = array_values(array_filter(
+            $items,
+            static fn (array $item): bool => in_array((string) ($item['stock_status'] ?? ''), ['low_stock', 'out_of_stock'], true)
+        ));
+        usort($flaggedItems, [self::class, 'compareInventoryAttentionItems']);
+
+        $attentionItems = array_slice($flaggedItems, 0, $limit);
+        $selectedIds = array_fill_keys(array_map(static fn (array $item): string => (string) $item['id'], $attentionItems), true);
+
+        if (count($attentionItems) < $limit) {
+            $watchListItems = array_values(array_filter(
+                $items,
+                static fn (array $item): bool => !isset($selectedIds[(string) $item['id']])
+            ));
+            usort($watchListItems, [self::class, 'compareInventoryWatchListItems']);
+
+            foreach (array_slice($watchListItems, 0, $limit - count($attentionItems)) as $item) {
+                $item['attention_status'] = 'Watch list';
+                $item['attention_tone'] = 'info';
+                $attentionItems[] = $item;
+            }
+        }
+
+        return array_map(static function (array $item): array {
+            $linkedServices = array_slice((array) ($item['used_in_service_names'] ?? []), 0, 2);
+            $buffer = max((float) $item['on_hand'] - (float) $item['reorder_level'], 0.0);
+            $isWatchList = isset($item['attention_status']);
+
+            return [
+                'id' => (string) $item['id'],
+                'href' => '/inventory/edit.php?id=' . urlencode((string) $item['id']),
+                'name' => (string) ($item['name'] ?? 'Inventory item'),
+                'category' => (string) ($item['category'] ?? 'Uncategorized'),
+                'location' => (string) ($item['location'] ?? 'No location recorded'),
+                'supplier' => (string) ($item['supplier'] ?? ''),
+                'on_hand' => (float) ($item['on_hand'] ?? 0.0),
+                'reorder_level' => (float) ($item['reorder_level'] ?? 0.0),
+                'unit' => (string) ($item['unit'] ?? 'units'),
+                'linked_services' => $linkedServices,
+                'status' => (string) ($item['attention_status'] ?? ucwords(str_replace('_', ' ', (string) ($item['stock_status'] ?? 'in_stock')))),
+                'tone' => (string) ($item['attention_tone'] ?? ($item['stock_tone'] ?? 'info')),
+                'attention_note' => $isWatchList
+                    ? sprintf('%s %s above reorder point', format_quantity($buffer), (string) ($item['unit'] ?? 'units'))
+                    : sprintf('%s %s short of reorder point', format_quantity((float) ($item['reorder_gap'] ?? 0.0)), (string) ($item['unit'] ?? 'units')),
+                'top_up_cost' => max((float) ($item['reorder_gap'] ?? 0.0), 0.0) * (float) ($item['cost_per_unit'] ?? 0.0),
+            ];
+        }, array_slice($attentionItems, 0, $limit));
+    }
+
+    private static function compareInventoryAttentionItems(array $left, array $right): int
+    {
+        $statusRankLeft = self::inventoryStatusPriority((string) ($left['stock_status'] ?? 'in_stock'));
+        $statusRankRight = self::inventoryStatusPriority((string) ($right['stock_status'] ?? 'in_stock'));
+
+        if ($statusRankLeft !== $statusRankRight) {
+            return $statusRankLeft <=> $statusRankRight;
+        }
+
+        $gapComparison = ((float) ($right['reorder_gap'] ?? 0.0)) <=> ((float) ($left['reorder_gap'] ?? 0.0));
+        if ($gapComparison !== 0) {
+            return $gapComparison;
+        }
+
+        return strcmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+    }
+
+    private static function compareInventoryWatchListItems(array $left, array $right): int
+    {
+        $bufferLeft = (float) ($left['on_hand'] ?? 0.0) - (float) ($left['reorder_level'] ?? 0.0);
+        $bufferRight = (float) ($right['on_hand'] ?? 0.0) - (float) ($right['reorder_level'] ?? 0.0);
+
+        if ($bufferLeft !== $bufferRight) {
+            return $bufferLeft <=> $bufferRight;
+        }
+
+        return strcmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+    }
+
+    private static function inventoryStatusPriority(string $status): int
+    {
+        return match ($status) {
+            'out_of_stock' => 0,
+            'low_stock' => 1,
+            default => 2,
+        };
     }
 
     public static function navigation(): array
@@ -355,6 +422,17 @@ final class Report
             $method = (string) $payment['method'];
             $date = (string) $payment['payment_date'];
             $amount = (float) $payment['amount'];
+
+            if (!isset($methodRows[$method])) {
+                $methodRows[$method] = [
+                    'method' => $method,
+                    'label' => Payment::methodLabel($method),
+                    'gross' => 0.0,
+                    'refunds' => 0.0,
+                    'net' => 0.0,
+                    'share' => '0%',
+                ];
+            }
 
             if ($payment['payment_status'] === 'refunded') {
                 $refunds += $amount;
@@ -908,6 +986,92 @@ final class Report
         }
 
         return number_format(($numerator / $denominator) * 100, 0) . '%';
+    }
+
+    private static function dashboardIncomeTrend(?string $selectedRevenueMonth): array
+    {
+        $payments = Payment::all();
+        $availableMonthMap = [];
+
+        foreach ($payments as $payment) {
+            $paymentDate = trim((string) ($payment['payment_date'] ?? ''));
+            if ($paymentDate === '') {
+                continue;
+            }
+
+            $month = substr($paymentDate, 0, 7);
+            if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+                continue;
+            }
+
+            $availableMonthMap[$month] = [
+                'value' => $month,
+                'label' => date('F Y', strtotime($month . '-01')),
+            ];
+        }
+
+        if ($availableMonthMap === []) {
+            $currentMonth = date('Y-m');
+            $availableMonthMap[$currentMonth] = [
+                'value' => $currentMonth,
+                'label' => date('F Y', strtotime($currentMonth . '-01')),
+            ];
+        }
+
+        krsort($availableMonthMap);
+        $availableMonths = array_values($availableMonthMap);
+
+        $normalizedMonth = trim((string) $selectedRevenueMonth);
+        if (!preg_match('/^\d{4}-\d{2}$/', $normalizedMonth) || !isset($availableMonthMap[$normalizedMonth])) {
+            $normalizedMonth = (string) ($availableMonths[0]['value'] ?? date('Y-m'));
+        }
+
+        $dateFrom = $normalizedMonth . '-01';
+        $dateTo = date('Y-m-t', strtotime($dateFrom));
+        $revenue = self::revenue([
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+        ]);
+        $dailyRows = array_map(static function (array $row): array {
+            return $row + [
+                'day' => date('j', strtotime((string) $row['date'])),
+            ];
+        }, $revenue['daily_rows']);
+
+        $peakNet = 0.0;
+        $bestDay = null;
+        $activeDays = 0;
+
+        foreach ($dailyRows as $row) {
+            $netValue = (float) ($row['net_value'] ?? 0.0);
+
+            if ($netValue > $peakNet) {
+                $peakNet = $netValue;
+                $bestDay = $row;
+            }
+
+            if ($netValue > 0.0) {
+                $activeDays++;
+            }
+        }
+
+        $averageNet = count($dailyRows) > 0 ? (float) $revenue['totals']['net_collected'] / count($dailyRows) : 0.0;
+
+        return [
+            'selected_month' => $normalizedMonth,
+            'selected_label' => date('F Y', strtotime($dateFrom)),
+            'available_months' => $availableMonths,
+            'daily_rows' => $dailyRows,
+            'totals' => [
+                'net_collected' => (float) $revenue['totals']['net_collected'],
+                'gross_collected' => (float) $revenue['totals']['gross_collected'],
+                'refunds' => (float) $revenue['totals']['refunds'],
+                'average_daily_net' => $averageNet,
+                'peak_daily_net' => $peakNet,
+                'active_days' => $activeDays,
+            ],
+            'best_day' => $bestDay,
+        ];
     }
 
     private static function highestValueRow(array $rows, string $key): ?array
