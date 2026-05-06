@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Payroll.php';
+require_once __DIR__ . '/../models/Payment.php';
 
 $currentUser = require_login();
 require_permission('payroll.manage');
@@ -42,8 +43,8 @@ require __DIR__ . '/../includes/header.php';
             <?php if (!$hasPayrollData): ?>
                 <article class="hero-panel">
                     <p class="hero-eyebrow">Payroll dashboard</p>
-                    <h1 class="hero-title">Calculate staff payouts from completed work without losing audit control.</h1>
-                    <p class="hero-copy">Payroll runs snapshot therapist earnings, preserve manual adjustments, and move cleanly from draft to finalized to paid.</p>
+                    <h1 class="hero-title">Run payroll from approved inputs, eligible bookings, and locked payout snapshots.</h1>
+                    <p class="hero-copy">Payroll now combines staff profiles, approved bonuses or deductions, overtime, advance recoveries, and paid completed bookings before you move a run through review, approval, lock, and payout.</p>
 
                     <div class="hero-actions">
                         <a class="action-link" href="/payroll/run.php">Generate payroll run</a>
@@ -67,10 +68,10 @@ require __DIR__ . '/../includes/header.php';
                 <div class="section-head">
                     <div>
                         <p class="section-kicker">Current cycle preview</p>
-                        <h3><?= e(date('j M', strtotime($currentPeriod['period_start']))) ?> - <?= e(date('j M Y', strtotime($currentPeriod['period_end']))) ?></h3>
-                    </div>
-                    <p>Only completed bookings count toward commission, while fixed and hybrid structures still carry their configured base pay.</p>
+                    <h3><?= e(date('j M', strtotime($currentPeriod['period_start']))) ?> - <?= e(date('j M Y', strtotime($currentPeriod['period_end']))) ?></h3>
+                <p>Commission only counts completed and fully paid bookings. Gross pay also includes approved bonuses and overtime, while deductions, advances, and statutory withholds reduce net pay.</p>
                 </div>
+            </div>
 
                 <?php if ($preview['items'] === []): ?>
                     <div class="empty-state">
@@ -83,9 +84,10 @@ require __DIR__ . '/../includes/header.php';
                             <tr>
                                 <th>Therapist</th>
                                 <th>Structure</th>
-                                <th>Completed</th>
-                                <th>Commission</th>
-                                <th>Projected payout</th>
+                                <th>Eligible work</th>
+                                <th>Gross</th>
+                                <th>Deductions</th>
+                                <th>Net</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -97,19 +99,18 @@ require __DIR__ . '/../includes/header.php';
                                     </td>
                                     <td>
                                         <strong><?= e(ucfirst($item['salary_structure'])) ?></strong>
-                                        <span><?= e((string) $item['commission_rate']) ?>% commission · <?= e(format_money((float) $item['fixed_pay'])) ?> fixed</span>
                                     </td>
                                     <td>
-                                        <strong><?= e((string) $item['completed_count']) ?> bookings</strong>
-                                        <span><?= e(format_money((float) $item['commissionable_value'])) ?> commissionable</span>
+                                        <strong><?= e((string) $item['commission_eligible_count']) ?> eligible</strong>
                                     </td>
                                     <td>
-                                        <strong><?= e(format_money((float) $item['commission_total'])) ?></strong>
-                                        <span><?= e(format_money((float) $item['collected_value'])) ?> collected</span>
+                                        <strong><?= e(format_money((float) $item['gross_pay'])) ?></strong>
                                     </td>
                                     <td>
-                                        <strong><?= e(format_money((float) $item['total_payout'])) ?></strong>
-                                        <span><?= e('Base ' . format_money((float) $item['base_payout'])) ?></span>
+                                        <strong><?= e(format_money((float) $item['total_deductions'])) ?></strong>
+                                    </td>
+                                    <td>
+                                        <strong><?= e(format_money((float) $item['net_pay'])) ?></strong>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -130,7 +131,7 @@ require __DIR__ . '/../includes/header.php';
                     <?php foreach ($recentRuns as $run): ?>
                         <article class="info-item">
                             <strong><?= e($run['label']) ?></strong>
-                            <p><?= e(ucfirst($run['status'])) ?> · <?= e(format_money((float) $run['totals']['net_payout'])) ?> · <?= e($run['reference']) ?></p>
+                            <p><?= e(Payroll::statusLabel((string) $run['status'])) ?> · <?= e(format_money((float) $run['totals']['net_payout'])) ?> · <?= e($run['reference']) ?></p>
                         </article>
                     <?php endforeach; ?>
                 </div>
@@ -148,15 +149,23 @@ require __DIR__ . '/../includes/header.php';
             <div class="quick-actions">
                 <a class="action-card" href="/payroll/run.php">
                     <strong>Generate next payroll run</strong>
-                    <p>Create a draft run from the current or custom date range, then apply manual adjustments before locking it.</p>
+                    <p>Create a draft run from the current or custom date range, review the gross or deduction mix, then move it through review, approval, lock, and payout.</p>
                 </a>
                 <a class="action-card" href="/payroll/earnings.php">
                     <strong>Review live staff earnings</strong>
-                    <p>Check the current earnings picture by therapist before you snapshot a run.</p>
+                    <p>Check the current payroll picture by staff member before you snapshot a run.</p>
                 </a>
                 <a class="action-card" href="/payroll/history.php">
                     <strong>Open payroll history</strong>
-                    <p>See past runs, statuses, payout values, and locked item-level snapshots for audit context.</p>
+                    <p>See past runs, statuses, payout values, locked item-level snapshots, payslips, and payroll payment postings.</p>
+                </a>
+                <a class="action-card" href="/payroll/profiles.php">
+                    <strong>Manage payroll profiles</strong>
+                    <p>Set employment type, payment method, commission model, statutory settings, and advance limits per employee.</p>
+                </a>
+                <a class="action-card" href="/payroll/adjustments.php">
+                    <strong>Capture payroll inputs</strong>
+                    <p>Record bonuses, deductions, advance recoveries, and overtime as first-class payroll records.</p>
                 </a>
             </div>
         </section>

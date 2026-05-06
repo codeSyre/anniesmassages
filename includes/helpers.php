@@ -113,7 +113,8 @@ function status_badge_class(string $status): string
 {
     return badge_class(match ($status) {
         'confirmed', 'completed', 'paid' => 'success',
-        'pending', 'partial', 'pending_payment', 'rescheduled', 'suspended', 'on_leave' => 'warning',
+        'pending', 'partial', 'pending_payment', 'rescheduled', 'suspended', 'on_leave', 'under_review' => 'warning',
+        'approved', 'locked' => 'info',
         'banned' => 'danger',
         'cancelled', 'no_show', 'refunded' => 'danger',
         default => 'info',
@@ -154,6 +155,10 @@ function action_icon_svg(string $icon): string
         'view' => '<path d="M2.75 12s3.25-5.25 9.25-5.25S21.25 12 21.25 12s-3.25 5.25-9.25 5.25S2.75 12 2.75 12Z" /><circle cx="12" cy="12" r="2.5" />',
         'edit' => '<path d="M4.75 19.25h3.5l9-9a1.75 1.75 0 0 0-3.5-3.5l-9 9v3.5Z" /><path d="M12.75 6.75l3.5 3.5" />',
         'history' => '<path d="M4.75 12a7.25 7.25 0 1 0 2.12-5.13" /><path d="M4.75 4.75v4.25H9" /><path d="M12 8.5v4l2.75 1.75" />',
+        'review' => '<path d="M4.75 7.25A2.5 2.5 0 0 1 7.25 4.75h9.5a2.5 2.5 0 0 1 2.5 2.5v9.5a2.5 2.5 0 0 1-2.5 2.5h-9.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M8.5 9.25h7" /><path d="M8.5 12h7" /><path d="M8.5 14.75h4.25" />',
+        'approve' => '<path d="M9.25 12.25l2 2l4.5-4.75" /><circle cx="12" cy="12" r="8.25" />',
+        'lock' => '<rect x="6.75" y="10.25" width="10.5" height="8" rx="2" /><path d="M9 10.25V8.5a3 3 0 1 1 6 0v1.75" />',
+        'pay' => '<rect x="4.75" y="6.5" width="14.5" height="10.5" rx="2.5" /><path d="M4.75 10h14.5" /><path d="M8 13.5h2.75" /><path d="M15.5 13.5h.01" />',
         'freeze' => '<rect x="7.25" y="6.25" width="3.25" height="11.5" rx="1.25" /><rect x="13.5" y="6.25" width="3.25" height="11.5" rx="1.25" />',
         'suspend' => '<circle cx="12" cy="12" r="8.25" /><path d="M8.5 8.5l7 7" />',
         'delete' => '<path d="M5.75 7.25h12.5" /><path d="M9.25 4.75h5.5" /><path d="M8.25 7.25v10a1 1 0 0 0 1 1h5.5a1 1 0 0 0 1-1v-10" /><path d="M10.25 10.25v5" /><path d="M13.75 10.25v5" />',

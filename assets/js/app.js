@@ -153,7 +153,7 @@ searchableSelectInputs.forEach((searchInput) => {
         .map((option) => {
         const id = option.dataset.searchableSelectId?.trim() ?? '';
         const label = option.value.trim();
-        return id !== '' && label !== '' ? { id, label } : null;
+        return label !== '' ? { id, label } : null;
     })
         .filter((option) => option !== null);
     const emptyMessage = searchInput.dataset.searchableSelectEmptyMessage?.trim() || 'Select an option from the list.';

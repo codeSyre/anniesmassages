@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 
 require_once __DIR__ . '/Staff.php';
+require_once __DIR__ . '/PayrollEngine.php';
 
 final class Payroll
 {
@@ -12,37 +13,52 @@ final class Payroll
 
     public static function statuses(): array
     {
-        return ['draft', 'finalized', 'paid'];
+        return PayrollEngine::statuses();
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return PayrollEngine::statusLabel($status);
     }
 
     public static function statusTone(string $status): string
     {
-        return match ($status) {
-            'paid'      => 'success',
-            'finalized' => 'info',
-            default     => 'warning',
-        };
+        return PayrollEngine::statusTone($status);
+    }
+
+    public static function adjustmentTypes(): array
+    {
+        return PayrollEngine::adjustmentTypes();
+    }
+
+    public static function adjustmentTypeLabel(string $type): string
+    {
+        return PayrollEngine::adjustmentTypeLabel($type);
+    }
+
+    public static function adjustmentStatuses(): array
+    {
+        return PayrollEngine::adjustmentStatuses();
+    }
+
+    public static function employmentTypes(): array
+    {
+        return PayrollEngine::employmentTypes();
+    }
+
+    public static function commissionModels(): array
+    {
+        return PayrollEngine::commissionModels();
     }
 
     public static function staffOptions(): array
     {
-        $staff = array_map(static fn (array $m): array => [
-            'id'               => $m['id'],
-            'name'             => $m['name'],
-            'salary_structure' => $m['salary_structure'],
-        ], self::eligibleStaff());
-
-        usort($staff, static fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
-
-        return $staff;
+        return PayrollEngine::staffOptions();
     }
 
     public static function currentPeriod(): array
     {
-        return [
-            'period_start' => date('Y-m-01'),
-            'period_end'   => date('Y-m-t'),
-        ];
+        return PayrollEngine::currentPeriod();
     }
 
     // -------------------------------------------------------------------------
@@ -51,19 +67,7 @@ final class Payroll
 
     public static function stats(): array
     {
-        $preview      = self::previewRun(self::currentPeriod() + ['selected_staff' => []]);
-        $runs         = self::runs();
-        $pendingRuns  = array_filter($runs, static fn (array $r): bool => $r['status'] !== 'paid');
-        $paidRuns     = array_filter($runs, static fn (array $r): bool => $r['status'] === 'paid');
-        $pendingValue = array_sum(array_map(static fn (array $r): float => (float) $r['net_payout'], $pendingRuns));
-        $paidValue    = array_sum(array_map(static fn (array $r): float => (float) $r['net_payout'], $paidRuns));
-
-        return [
-            ['label' => 'Current projected payout', 'value' => format_money((float) $preview['totals']['net_payout']), 'tone' => 'warning'],
-            ['label' => 'Pending payroll runs',      'value' => (string) count($pendingRuns),                          'tone' => 'info'],
-            ['label' => 'Paid payroll value',        'value' => format_money($paidValue),                              'tone' => 'success'],
-            ['label' => 'Unpaid run value',          'value' => format_money($pendingValue),                           'tone' => 'danger'],
-        ];
+        return PayrollEngine::stats();
     }
 
     // -------------------------------------------------------------------------
@@ -72,73 +76,12 @@ final class Payroll
 
     public static function earnings(array $filters = []): array
     {
-        $periodStart = (string) ($filters['period_start'] ?? date('Y-m-01'));
-        $periodEnd   = (string) ($filters['period_end']   ?? date('Y-m-t'));
-        $selectedIds = self::normalizeSelectedStaff($filters['selected_staff'] ?? ($filters['staff_id'] ?? 'all'));
-        $staff       = self::eligibleStaff($selectedIds);
-        $rows        = [];
-
-        foreach ($staff as $member) {
-            $completedBookings = array_values(array_filter(
-                Staff::bookings($member['id']),
-                static fn (array $b): bool =>
-                    $b['status'] === 'completed'
-                    && $b['date'] >= $periodStart
-                    && $b['date'] <= $periodEnd
-            ));
-
-            usort($completedBookings, static fn (array $a, array $b): int => strcmp($b['sort_key'], $a['sort_key']));
-
-            $commissionableValue = array_sum(array_map(static fn (array $b): float => (float) $b['amount_total'], $completedBookings));
-            $collectedValue      = array_sum(array_map(static fn (array $b): float => (float) $b['amount_paid'],  $completedBookings));
-            $commissionRate      = (float) $member['commission_rate'];
-            $commissionTotal     = round($commissionableValue * ($commissionRate / 100), 2);
-            $basePayout          = match ($member['salary_structure']) {
-                'fixed'  => (float) $member['fixed_pay'],
-                'hybrid' => (float) $member['fixed_pay'] + $commissionTotal,
-                default  => $commissionTotal,
-            };
-
-            $rows[] = [
-                'staff_id'            => $member['id'],
-                'staff_name'          => $member['name'],
-                'role_type'           => $member['role_type'],
-                'salary_structure'    => $member['salary_structure'],
-                'commission_rate'     => $commissionRate,
-                'fixed_pay'           => (float) $member['fixed_pay'],
-                'completed_count'     => count($completedBookings),
-                'commissionable_value'=> $commissionableValue,
-                'collected_value'     => $collectedValue,
-                'commission_total'    => $commissionTotal,
-                'base_payout'         => round($basePayout, 2),
-                'adjustment'          => 0.0,
-                'adjustment_note'     => '',
-                'total_payout'        => round($basePayout, 2),
-                'bookings'            => $completedBookings,
-            ];
-        }
-
-        usort($rows, static fn (array $a, array $b): int => strcmp($a['staff_name'], $b['staff_name']));
-
-        return $rows;
+        return PayrollEngine::earnings($filters);
     }
 
     public static function earningsStats(array $filters = []): array
     {
-        $rows       = self::earnings($filters);
-        $net        = array_sum(array_map(static fn (array $r): float => (float) $r['total_payout'],    $rows));
-        $commission = array_sum(array_map(static fn (array $r): float => (float) $r['commission_total'], $rows));
-        $fixed      = array_sum(array_map(static function (array $r): float {
-            return in_array($r['salary_structure'], ['fixed', 'hybrid'], true) ? (float) $r['fixed_pay'] : 0.0;
-        }, $rows));
-        $completed  = array_sum(array_map(static fn (array $r): int => (int) $r['completed_count'], $rows));
-
-        return [
-            ['label' => 'Estimated payout',           'value' => format_money($net),        'tone' => 'warning'],
-            ['label' => 'Commission total',            'value' => format_money($commission), 'tone' => 'success'],
-            ['label' => 'Fixed-pay base',              'value' => format_money($fixed),      'tone' => 'info'],
-            ['label' => 'Completed bookings counted',  'value' => (string) $completed,       'tone' => 'info'],
-        ];
+        return PayrollEngine::earningsStats($filters);
     }
 
     // -------------------------------------------------------------------------
@@ -147,76 +90,12 @@ final class Payroll
 
     public static function previewRun(array $payload): array
     {
-        $periodStart   = (string) ($payload['period_start']   ?? date('Y-m-01'));
-        $periodEnd     = (string) ($payload['period_end']     ?? date('Y-m-t'));
-        $selectedStaff = self::normalizeSelectedStaff($payload['selected_staff'] ?? []);
-        $adjustments   = is_array($payload['adjustments']  ?? null) ? $payload['adjustments']  : [];
-        $staffNotes    = is_array($payload['staff_notes']   ?? null) ? $payload['staff_notes']  : [];
-
-        $rows  = self::earnings([
-            'period_start'   => $periodStart,
-            'period_end'     => $periodEnd,
-            'selected_staff' => $selectedStaff,
-        ]);
-
-        $items = array_map(static function (array $row) use ($adjustments, $staffNotes): array {
-            $adjustment = round((float) ($adjustments[$row['staff_id']] ?? 0), 2);
-            $note       = trim((string) ($staffNotes[$row['staff_id']] ?? ''));
-            $row['adjustment']      = $adjustment;
-            $row['adjustment_note'] = $note;
-            $row['total_payout']    = round((float) $row['base_payout'] + $adjustment, 2);
-            return $row;
-        }, $rows);
-
-        return [
-            'period_start' => $periodStart,
-            'period_end'   => $periodEnd,
-            'items'        => $items,
-            'totals'       => [
-                'staff_count'          => count($items),
-                'completed_bookings'   => array_sum(array_map(static fn (array $i): int   => (int)   $i['completed_count'],      $items)),
-                'commissionable_value' => array_sum(array_map(static fn (array $i): float => (float) $i['commissionable_value'], $items)),
-                'base_payout'          => array_sum(array_map(static fn (array $i): float => (float) $i['base_payout'],          $items)),
-                'adjustment_total'     => array_sum(array_map(static fn (array $i): float => (float) $i['adjustment'],           $items)),
-                'net_payout'           => array_sum(array_map(static fn (array $i): float => (float) $i['total_payout'],         $items)),
-            ],
-        ];
+        return PayrollEngine::previewRun($payload);
     }
 
     public static function validateRunPayload(array $payload): array
     {
-        $errors      = [];
-        $periodStart = trim((string) ($payload['period_start'] ?? ''));
-        $periodEnd   = trim((string) ($payload['period_end']   ?? ''));
-
-        if ($periodStart === '') {
-            $errors['period_start'] = 'Period start is required.';
-        }
-
-        if ($periodEnd === '') {
-            $errors['period_end'] = 'Period end is required.';
-        }
-
-        if ($periodStart !== '' && $periodEnd !== '' && $periodStart > $periodEnd) {
-            $errors['period_end'] = 'Period end must be on or after the start date.';
-        }
-
-        foreach ((array) ($payload['adjustments'] ?? []) as $staffId => $adjustment) {
-            if ($adjustment === '') {
-                continue;
-            }
-            if (!is_numeric((string) $adjustment)) {
-                $errors['adjustments.' . $staffId] = 'Adjustments must be numeric.';
-            }
-        }
-
-        $preview = self::previewRun($payload);
-
-        if ($preview['items'] === []) {
-            $errors['selected_staff'] = 'Choose at least one eligible staff member or widen the period.';
-        }
-
-        return $errors;
+        return PayrollEngine::validateRunPayload($payload);
     }
 
     // -------------------------------------------------------------------------
@@ -225,176 +104,12 @@ final class Payroll
 
     public static function createRun(array $payload, string $createdBy = 'Admin panel'): array
     {
-        $preview     = self::previewRun($payload);
-        $runId       = self::nextId();
-        $reference   = self::nextReference();
-        $periodLabel = date('j M', strtotime($preview['period_start'])) . ' - ' . date('j M Y', strtotime($preview['period_end']));
-        $label       = trim((string) ($payload['label'] ?? ''));
-        $notes       = trim((string) ($payload['notes'] ?? ''));
-
-        $run = [
-            'id'           => $runId,
-            'reference'    => $reference,
-            'label'        => $label !== '' ? $label : 'Payroll run ' . $periodLabel,
-            'period_start' => $preview['period_start'],
-            'period_end'   => $preview['period_end'],
-            'status'       => 'draft',
-            'created_by'   => $createdBy,
-            'created_at'   => date('Y-m-d H:i:s'),
-            'finalized_at' => null,
-            'paid_at'      => null,
-            'notes'        => $notes,
-            'totals'       => $preview['totals'],
-            'items'        => array_map(static fn (array $item): array => [
-                'staff_id'             => $item['staff_id'],
-                'staff_name'           => $item['staff_name'],
-                'role_type'            => $item['role_type'],
-                'salary_structure'     => $item['salary_structure'],
-                'commission_rate'      => $item['commission_rate'],
-                'fixed_pay'            => $item['fixed_pay'],
-                'completed_count'      => $item['completed_count'],
-                'commissionable_value' => $item['commissionable_value'],
-                'collected_value'      => $item['collected_value'],
-                'commission_total'     => $item['commission_total'],
-                'base_payout'          => $item['base_payout'],
-                'adjustment'           => $item['adjustment'],
-                'adjustment_note'      => $item['adjustment_note'],
-                'total_payout'         => $item['total_payout'],
-            ], $preview['items']),
-            'history' => [[
-                'label' => 'Payroll run created',
-                'meta'  => $createdBy . ' generated this run from the payroll workspace.',
-                'tone'  => 'info',
-            ]],
-        ];
-
-        $conn = self::connection();
-
-        if ($conn instanceof mysqli) {
-            mysqli_begin_transaction($conn);
-            try {
-                $stmt = self::prepare($conn,
-                    'INSERT INTO payroll_runs
-                        (id, reference, label, period_start, period_end, status, created_by, notes,
-                         staff_count, completed_bookings, commissionable_value, base_payout, adjustment_total, net_payout, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-                    'ssssssssiidddd',
-                    [
-                        $runId, $reference, $run['label'],
-                        $preview['period_start'], $preview['period_end'],
-                        'draft', $createdBy, $notes,
-                        $preview['totals']['staff_count'],
-                        $preview['totals']['completed_bookings'],
-                        $preview['totals']['commissionable_value'],
-                        $preview['totals']['base_payout'],
-                        $preview['totals']['adjustment_total'],
-                        $preview['totals']['net_payout'],
-                    ]
-                );
-                if (!$stmt instanceof mysqli_stmt) {
-                    throw new RuntimeException('Unable to insert payroll run.');
-                }
-                $stmt->close();
-
-                foreach ($run['items'] as $item) {
-                    $itemId = self::nextId();
-                    $si = self::prepare($conn,
-                        'INSERT INTO payroll_run_items
-                            (id, run_id, staff_id, staff_name, role_type, salary_structure,
-                             commission_rate, fixed_pay, completed_count, commissionable_value,
-                             collected_value, commission_total, base_payout, adjustment, adjustment_note, total_payout)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        'ssssssddiiddddsd',
-                        [
-                            $itemId, $runId,
-                            $item['staff_id'] !== '' ? $item['staff_id'] : null,
-                            $item['staff_name'], $item['role_type'], $item['salary_structure'],
-                            $item['commission_rate'], $item['fixed_pay'],
-                            $item['completed_count'], $item['commissionable_value'],
-                            $item['collected_value'], $item['commission_total'],
-                            $item['base_payout'], $item['adjustment'],
-                            $item['adjustment_note'], $item['total_payout'],
-                        ]
-                    );
-                    if (!$si instanceof mysqli_stmt) {
-                        throw new RuntimeException('Unable to insert payroll run item.');
-                    }
-                    $si->close();
-                }
-
-                self::insertHistory($conn, $runId, 'Payroll run created', $createdBy . ' generated this run from the payroll workspace.', 'info');
-
-                mysqli_commit($conn);
-                self::$runCache = null;
-            } catch (Throwable $e) {
-                mysqli_rollback($conn);
-                error_log('Payroll createRun failed: ' . $e->getMessage());
-                throw $e;
-            }
-        }
-
-        return $run;
+        return PayrollEngine::createRun($payload, $createdBy);
     }
 
-    public static function transitionRun(string $runId, string $action, string $actor = 'Admin panel'): ?array
+    public static function transitionRun(string $runId, string $action, string $actor = 'Admin panel', string $reason = ''): ?array
     {
-        $run = self::find($runId);
-
-        if ($run === null) {
-            return null;
-        }
-
-        $newStatus    = $run['status'];
-        $finalizedAt  = $run['finalized_at'];
-        $paidAt       = $run['paid_at'];
-        $historyLabel = '';
-        $historyMeta  = '';
-        $historyTone  = 'info';
-
-        if ($action === 'finalize' && $run['status'] === 'draft') {
-            $newStatus    = 'finalized';
-            $finalizedAt  = date('Y-m-d H:i:s');
-            $historyLabel = 'Run finalized';
-            $historyMeta  = $actor . ' locked the run for audit and payout.';
-            $historyTone  = 'warning';
-        } elseif ($action === 'pay' && in_array($run['status'], ['draft', 'finalized'], true)) {
-            $newStatus    = 'paid';
-            $paidAt       = date('Y-m-d H:i:s');
-            $finalizedAt  = $finalizedAt ?? $paidAt;
-            $historyLabel = 'Run marked as paid';
-            $historyMeta  = $actor . ' recorded the payout as completed.';
-            $historyTone  = 'success';
-        } else {
-            return $run;
-        }
-
-        $conn = self::connection();
-
-        if ($conn instanceof mysqli) {
-            mysqli_begin_transaction($conn);
-            try {
-                $stmt = self::prepare($conn,
-                    'UPDATE payroll_runs SET status = ?, finalized_at = ?, paid_at = ?, updated_at = NOW() WHERE id = ?',
-                    'ssss',
-                    [$newStatus, $finalizedAt, $paidAt, $runId]
-                );
-                if (!$stmt instanceof mysqli_stmt) {
-                    throw new RuntimeException('Unable to update payroll run status.');
-                }
-                $stmt->close();
-
-                self::insertHistory($conn, $runId, $historyLabel, $historyMeta, $historyTone);
-
-                mysqli_commit($conn);
-                self::$runCache = null;
-            } catch (Throwable $e) {
-                mysqli_rollback($conn);
-                error_log('Payroll transitionRun failed: ' . $e->getMessage());
-                throw $e;
-            }
-        }
-
-        return self::find($runId);
+        return PayrollEngine::transitionRun($runId, $action, $actor, $reason);
     }
 
     // -------------------------------------------------------------------------
@@ -403,34 +118,72 @@ final class Payroll
 
     public static function runs(array $filters = []): array
     {
-        $runs   = array_values(self::databaseRuns());
-        $status = (string) ($filters['status'] ?? 'all');
-        $search = strtolower(trim((string) ($filters['search'] ?? '')));
-
-        $runs = array_values(array_filter($runs, static function (array $run) use ($status, $search): bool {
-            if ($status !== 'all' && $run['status'] !== $status) {
-                return false;
-            }
-            if ($search === '') {
-                return true;
-            }
-            $haystack = strtolower(implode(' ', [$run['reference'], $run['label'], $run['notes']]));
-            return str_contains($haystack, $search);
-        }));
-
-        usort($runs, static fn (array $a, array $b): int => strcmp($b['created_at'], $a['created_at']));
-
-        return $runs;
+        return PayrollEngine::runs($filters);
     }
 
     public static function find(string $runId): ?array
     {
-        return self::databaseRuns()[$runId] ?? null;
+        return PayrollEngine::find($runId);
     }
 
     public static function recentRuns(int $limit = 5): array
     {
-        return array_slice(self::runs(), 0, $limit);
+        return PayrollEngine::recentRuns($limit);
+    }
+
+    public static function profiles(array $filters = []): array
+    {
+        return PayrollEngine::profiles($filters);
+    }
+
+    public static function profileForStaff(string $staffId): array
+    {
+        return PayrollEngine::profileForStaff($staffId);
+    }
+
+    public static function validateProfilePayload(array $payload): array
+    {
+        return PayrollEngine::validateProfilePayload($payload);
+    }
+
+    public static function saveProfile(array $payload, string $actor = 'Admin panel'): ?array
+    {
+        return PayrollEngine::saveProfile($payload, $actor);
+    }
+
+    public static function adjustments(array $filters = []): array
+    {
+        return PayrollEngine::adjustments($filters);
+    }
+
+    public static function findAdjustment(string $id): ?array
+    {
+        return PayrollEngine::findAdjustment($id);
+    }
+
+    public static function validateAdjustmentPayload(array $payload): array
+    {
+        return PayrollEngine::validateAdjustmentPayload($payload);
+    }
+
+    public static function saveAdjustment(array $payload, string $actor = 'Admin panel'): ?array
+    {
+        return PayrollEngine::saveAdjustment($payload, $actor);
+    }
+
+    public static function transitionAdjustment(string $adjustmentId, string $action, string $actor = 'Admin panel'): ?array
+    {
+        return PayrollEngine::transitionAdjustment($adjustmentId, $action, $actor);
+    }
+
+    public static function payslipForRunStaff(string $runId, string $staffId): ?array
+    {
+        return PayrollEngine::payslipForRunStaff($runId, $staffId);
+    }
+
+    public static function paymentEntriesForRun(string $runId): array
+    {
+        return PayrollEngine::paymentEntriesForRun($runId);
     }
 
     // -------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Payroll.php';
+require_once __DIR__ . '/../models/Payment.php';
 
 $currentUser = require_login();
 require_permission('payroll.manage');
@@ -32,8 +33,8 @@ require __DIR__ . '/../includes/header.php';
         <section class="module-hero">
             <article class="hero-panel">
                 <p class="hero-eyebrow">Staff earnings</p>
-                <h1 class="hero-title">Review payroll math before you lock it into a run.</h1>
-                <p class="hero-copy">This page stays live against bookings and staff settings, so it is the best place to sanity-check commission and fixed-pay exposure before snapshotting payroll.</p>
+                <h1 class="hero-title">Review live payroll math before you lock it into a run.</h1>
+                <p class="hero-copy">This page stays live against eligible bookings, payroll profiles, and approved payroll inputs, so it is the best place to sanity-check gross pay, deductions, and net payout before snapshotting payroll.</p>
 
                 <div class="hero-actions">
                     <a class="action-link" href="/payroll/run.php?period_start=<?= e($filters['period_start']) ?>&period_end=<?= e($filters['period_end']) ?>">Use this for a run</a>
@@ -104,14 +105,15 @@ require __DIR__ . '/../includes/header.php';
             <?php else: ?>
                 <table>
                     <thead>
-                        <tr>
-                            <th>Therapist</th>
-                            <th>Structure</th>
-                            <th>Completed work</th>
-                            <th>Commission</th>
-                            <th>Projected payout</th>
-                            <th></th>
-                        </tr>
+                            <tr>
+                                <th>Therapist</th>
+                                <th>Structure</th>
+                                <th>Eligible work</th>
+                                <th>Gross</th>
+                                <th>Deductions</th>
+                                <th>Net</th>
+                                <th></th>
+                            </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($earnings as $row): ?>
@@ -122,19 +124,23 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <strong><?= e(ucfirst($row['salary_structure'])) ?></strong>
-                                    <span><?= e((string) $row['commission_rate']) ?>% commission · <?= e(format_money((float) $row['fixed_pay'])) ?> fixed</span>
+                                    <span><?= e(ucfirst($row['employment_type'])) ?> · <?= e(Payment::methodLabel((string) $row['payment_method'])) ?></span>
                                 </td>
                                 <td>
-                                    <strong><?= e((string) $row['completed_count']) ?> completed</strong>
-                                    <span><?= e(format_money((float) $row['commissionable_value'])) ?> commissionable</span>
+                                    <strong><?= e((string) $row['commission_eligible_count']) ?> eligible</strong>
+                                    <span><?= e((string) $row['completed_count']) ?> completed in period</span>
                                 </td>
                                 <td>
-                                    <strong><?= e(format_money((float) $row['commission_total'])) ?></strong>
-                                    <span><?= e(format_money((float) $row['collected_value'])) ?> collected</span>
+                                    <strong><?= e(format_money((float) $row['gross_pay'])) ?></strong>
+                                    <span>Commission <?= e(format_money((float) $row['commission_total'])) ?> · Overtime <?= e(format_money((float) $row['overtime_total'])) ?></span>
                                 </td>
                                 <td>
-                                    <strong><?= e(format_money((float) $row['total_payout'])) ?></strong>
-                                    <span>Base <?= e(format_money((float) $row['base_payout'])) ?></span>
+                                    <strong><?= e(format_money((float) $row['total_deductions'])) ?></strong>
+                                    <span>Tax <?= e(format_money((float) $row['tax_amount'])) ?> · Advances <?= e(format_money((float) $row['advance_total'])) ?></span>
+                                </td>
+                                <td>
+                                    <strong><?= e(format_money((float) $row['net_pay'])) ?></strong>
+                                    <span><?= e($row['commission_source_summary']) ?></span>
                                 </td>
                                 <td class="row-actions">
                                     <a href="/staff/earnings.php?id=<?= e($row['staff_id']) ?>">Staff detail</a>
