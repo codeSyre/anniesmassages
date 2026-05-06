@@ -11,11 +11,20 @@ $currentPeriod = Payroll::currentPeriod();
 $preview = Payroll::previewRun($currentPeriod + ['selected_staff' => []]);
 $recentRuns = Payroll::recentRuns();
 $flashMessage = flash_get('payroll_success');
+$hasPayrollData = ($preview['items'] ?? []) !== [] || $recentRuns !== [];
 
 $pageTitle = 'Payroll';
 $pageEyebrow = 'Salary and payout operations';
 $currentRoute = 'payroll';
-$topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php', 'permission' => 'payroll.manage'];
+
+if ($hasPayrollData) {
+    $topbarActions = [
+        ['label' => 'Generate payroll run', 'href' => '/payroll/run.php', 'permission' => 'payroll.manage'],
+        ['label' => 'Payroll history', 'href' => '/payroll/history.php', 'permission' => 'payroll.manage'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php', 'permission' => 'payroll.manage'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -29,19 +38,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Payroll dashboard</p>
-                <h1 class="hero-title">Calculate staff payouts from completed work without losing audit control.</h1>
-                <p class="hero-copy">Payroll runs snapshot therapist earnings, preserve manual adjustments, and move cleanly from draft to finalized to paid.</p>
+        <section class="module-hero<?= $hasPayrollData ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasPayrollData): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Payroll dashboard</p>
+                    <h1 class="hero-title">Calculate staff payouts from completed work without losing audit control.</h1>
+                    <p class="hero-copy">Payroll runs snapshot therapist earnings, preserve manual adjustments, and move cleanly from draft to finalized to paid.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/payroll/run.php">Generate payroll run</a>
-                    <a class="action-link is-secondary" href="/payroll/history.php">Payroll history</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/payroll/run.php">Generate payroll run</a>
+                        <a class="action-link is-secondary" href="/payroll/history.php">Payroll history</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasPayrollData ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

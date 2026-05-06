@@ -12,12 +12,21 @@ $filters = [
 ];
 
 $report = Report::dashboard($filters);
+$hasReportData = ($report['daily_rows'] ?? []) !== [];
 
 $pageTitle = 'Reports & Analytics';
 $pageEyebrow = 'Cross-module performance view';
 $currentRoute = 'reports';
 $reportRoute = 'reports.dashboard';
-$topbarAction = ['label' => 'Revenue report', 'href' => '/reports/revenue.php?date_from=' . $report['filters']['date_from'] . '&date_to=' . $report['filters']['date_to']];
+
+if ($hasReportData) {
+    $topbarActions = [
+        ['label' => 'Revenue report', 'href' => '/reports/revenue.php?date_from=' . $report['filters']['date_from'] . '&date_to=' . $report['filters']['date_to']],
+        ['label' => 'Open payroll', 'href' => '/reports/payroll.php?period_start=' . $report['filters']['date_from'] . '&period_end=' . $report['filters']['date_to']],
+    ];
+} else {
+    $topbarAction = ['label' => 'Revenue report', 'href' => '/reports/revenue.php?date_from=' . $report['filters']['date_from'] . '&date_to=' . $report['filters']['date_to']];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -27,19 +36,21 @@ require __DIR__ . '/../includes/header.php';
     <main class="page">
         <?php require __DIR__ . '/../includes/topbar.php'; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Reports overview</p>
-                <h1 class="hero-title">See revenue, bookings, stock, staff, and payroll as one operating picture.</h1>
-                <p class="hero-copy">This view rolls the key admin modules into one reporting layer so you can spot cash pressure, demand shifts, therapist performance, and supply risk without jumping between pages.</p>
+        <section class="module-hero<?= $hasReportData ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasReportData): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Reports overview</p>
+                    <h1 class="hero-title">See revenue, bookings, stock, staff, and payroll as one operating picture.</h1>
+                    <p class="hero-copy">This view rolls the key admin modules into one reporting layer so you can spot cash pressure, demand shifts, therapist performance, and supply risk without jumping between pages.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/reports/revenue.php?date_from=<?= e($report['filters']['date_from']) ?>&date_to=<?= e($report['filters']['date_to']) ?>">Open revenue</a>
-                    <a class="action-link is-secondary" href="/reports/payroll.php?period_start=<?= e($report['filters']['date_from']) ?>&period_end=<?= e($report['filters']['date_to']) ?>">Open payroll</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/reports/revenue.php?date_from=<?= e($report['filters']['date_from']) ?>&date_to=<?= e($report['filters']['date_to']) ?>">Open revenue</a>
+                        <a class="action-link is-secondary" href="/reports/payroll.php?period_start=<?= e($report['filters']['date_from']) ?>&period_end=<?= e($report['filters']['date_to']) ?>">Open payroll</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasReportData ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($report['stats'] as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

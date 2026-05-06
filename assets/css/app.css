@@ -1314,6 +1314,17 @@ td strong {
   color: var(--color-warning);
 }
 
+.button-muted-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.list-pagination {
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+}
+
 .row-actions-cell {
   white-space: nowrap;
 }

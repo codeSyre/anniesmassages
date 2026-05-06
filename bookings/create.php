@@ -31,8 +31,8 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Booking intake</p>
                         <h3>Create a new booking</h3>
-                    </div>
                     <p>Bookings need a guest, service, therapist, date, and time before they can be placed on the calendar.</p>
+                    </div>
                 </div>
 
                 <?php if (isset($errors['booking'])): ?>

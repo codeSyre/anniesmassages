@@ -15,6 +15,7 @@ $filters = [
     'date_to' => (string) ($_GET['date_to'] ?? date('Y-m-t')),
 ];
 
+$hasPayments = Payment::all() !== [];
 $payments = Payment::all($filters);
 $totalPayments = count($payments);
 $perPage = 10;
@@ -57,7 +58,15 @@ foreach (['search', 'method', 'status', 'staff_id', 'date_from', 'date_to'] as $
 $pageTitle = 'Payments Ledger';
 $pageEyebrow = 'Finance operations';
 $currentRoute = 'payments';
-$topbarAction = ['label' => 'Record payment', 'href' => '/payments/create.php', 'permission' => 'payments.create'];
+
+if ($hasPayments) {
+    $topbarActions = [
+        ['label' => 'Record payment', 'href' => '/payments/create.php', 'permission' => 'payments.create'],
+        ['label' => 'Daily reconciliation', 'href' => '/payments/reconciliation.php?date=' . urlencode(date('Y-m-d')), 'permission' => 'payments.view'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Record payment', 'href' => '/payments/create.php', 'permission' => 'payments.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -71,19 +80,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Payments ledger</p>
-                <h1 class="hero-title">Track cash flow against every booking from one calm finance view.</h1>
-                <p class="hero-copy">Use the ledger to record incoming payments, watch outstanding balances, and keep daily reconciliation close to the booking workflow.</p>
+        <section class="module-hero<?= $hasPayments ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasPayments): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Payments ledger</p>
+                    <h1 class="hero-title">Track cash flow against every booking from one calm finance view.</h1>
+                    <p class="hero-copy">Use the ledger to record incoming payments, watch outstanding balances, and keep daily reconciliation close to the booking workflow.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/payments/create.php">Record payment</a>
-                    <a class="action-link is-secondary" href="/payments/reconciliation.php?date=<?= e(date('Y-m-d')) ?>">Daily reconciliation</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/payments/create.php">Record payment</a>
+                        <a class="action-link is-secondary" href="/payments/reconciliation.php?date=<?= e(date('Y-m-d')) ?>">Daily reconciliation</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasPayments ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

@@ -17,6 +17,10 @@ $itemErrors = flash_get('inventory_item_errors', []);
 $movementErrors = flash_get('inventory_movement_errors', []);
 $flashMessage = flash_get('inventory_success');
 $serviceOptions = Inventory::serviceOptions();
+$serviceLabels = [];
+foreach ($serviceOptions as $service) {
+    $serviceLabels[(string) $service['id']] = (string) $service['name'];
+}
 $categories = Inventory::categories();
 $locationOptions = Inventory::storageLocations();
 $recentMovements = Inventory::recentMovements($inventoryItem['id']);
@@ -38,6 +42,10 @@ require __DIR__ . '/../includes/header.php';
 
         <?php if (is_string($flashMessage) && $flashMessage !== ''): ?>
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
+        <?php endif; ?>
+
+        <?php if (isset($movementErrors['movement'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($movementErrors['movement']) ?></div>
         <?php endif; ?>
 
         <section class="module-hero">
@@ -75,7 +83,6 @@ require __DIR__ . '/../includes/header.php';
                         <p class="section-kicker">Item profile</p>
                         <h3>Update inventory details</h3>
                     </div>
-                    <p>Metadata changes live here. Quantity changes should go through the movement form below so they remain auditable.</p>
                 </div>
 
                 <form class="module-form" method="post" action="/process/inventory-save.php">
@@ -197,8 +204,8 @@ require __DIR__ . '/../includes/header.php';
                 <div>
                     <p class="section-kicker">Record stock movement</p>
                     <h3>Adjust on-hand quantity</h3>
-                </div>
                 <p>Use this form for stock in, stock out, wastage, service usage, or full counted adjustments.</p>
+                </div>
             </div>
 
             <form class="module-form" method="post" action="/process/inventory-save.php">
@@ -229,12 +236,27 @@ require __DIR__ . '/../includes/header.php';
                     </label>
                     <label class="field">
                         <span>Service link</span>
-                        <select name="service_id">
-                            <option value="">No service link</option>
+                        <?php $selectedMovementServiceId = (string) old_input('service_id', ''); ?>
+                        <?php $selectedMovementServiceValue = $selectedMovementServiceId !== '' ? $selectedMovementServiceId : '__none__'; ?>
+                        <?php $selectedMovementServiceLabel = $selectedMovementServiceId !== '' ? ($serviceLabels[$selectedMovementServiceId] ?? '') : 'No service link'; ?>
+                        <input type="hidden" name="service_id" id="inventory-movement-service-value" value="<?= e($selectedMovementServiceValue) ?>">
+                        <input
+                            type="text"
+                            id="inventory-movement-service-search"
+                            value="<?= e($selectedMovementServiceLabel) ?>"
+                            list="inventory-movement-service-options"
+                            autocomplete="off"
+                            placeholder="No service link"
+                            data-searchable-select-input
+                            data-searchable-select-target="inventory-movement-service-value"
+                            data-searchable-select-empty-message="Select a valid service option from the list."
+                        >
+                        <datalist id="inventory-movement-service-options">
+                            <option value="No service link" data-searchable-select-id="__none__"></option>
                             <?php foreach ($serviceOptions as $service): ?>
-                                <option value="<?= e($service['id']) ?>" <?= (string) old_input('service_id') === $service['id'] ? 'selected' : '' ?>><?= e($service['name']) ?></option>
+                                <option value="<?= e($service['name']) ?>" data-searchable-select-id="<?= e($service['id']) ?>"></option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                         <?php if (isset($movementErrors['service_id'])): ?><small><?= e($movementErrors['service_id']) ?></small><?php endif; ?>
                     </label>
                 </div>

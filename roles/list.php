@@ -11,6 +11,7 @@ $filters = [
     'status' => (string) ($_GET['status'] ?? 'all'),
 ];
 
+$hasRoles = Role::all() !== [];
 $roles = Role::all($filters);
 $stats = Role::stats();
 $flashMessage = flash_get('role_success');
@@ -19,7 +20,15 @@ $errors = flash_get('role_errors', []);
 $pageTitle = 'Roles & Permissions';
 $pageEyebrow = 'Access control';
 $currentRoute = 'roles';
-$topbarAction = ['label' => 'Create role', 'href' => '/roles/create.php', 'permission' => 'roles.create'];
+
+if ($hasRoles) {
+    $topbarActions = [
+        ['label' => 'Create role', 'href' => '/roles/create.php', 'permission' => 'roles.create'],
+        ['label' => 'Open reports', 'href' => '/reports/dashboard.php', 'permission' => 'reports.view'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Create role', 'href' => '/roles/create.php', 'permission' => 'roles.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -37,19 +46,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-danger"><?= e($errors['role']) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Roles and permissions</p>
-                <h1 class="hero-title">Control who can see, change, and approve each part of the admin.</h1>
-                <p class="hero-copy">Use roles to keep operational access intentional. The matrix below reflects the live permission keys already guarding bookings, payments, inventory, payroll, notifications, reports, and the rest of the admin.</p>
+        <section class="module-hero<?= $hasRoles ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasRoles): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Roles and permissions</p>
+                    <h1 class="hero-title">Control who can see, change, and approve each part of the admin.</h1>
+                    <p class="hero-copy">Use roles to keep operational access intentional. The matrix below reflects the live permission keys already guarding bookings, payments, inventory, payroll, notifications, reports, and the rest of the admin.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/roles/create.php">Create role</a>
-                    <a class="action-link is-secondary" href="/reports/dashboard.php">Open reports</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/roles/create.php">Create role</a>
+                        <a class="action-link is-secondary" href="/reports/dashboard.php">Open reports</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasRoles ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

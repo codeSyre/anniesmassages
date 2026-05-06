@@ -14,17 +14,71 @@ $filters = [
     'date_to' => (string) ($_GET['date_to'] ?? date('Y-m-d')),
 ];
 
-$movements = Inventory::movements($filters);
-$stats = Inventory::movementStats();
 $inventoryItems = Inventory::all();
+$inventoryItemLabels = [];
+foreach ($inventoryItems as $item) {
+    $inventoryItemLabels[(string) $item['id']] = $item['name'] . ' · ' . format_quantity((float) $item['on_hand']) . ' ' . $item['unit'];
+}
+
+if ($filters['item_id'] === '' || ($filters['item_id'] !== 'all' && !isset($inventoryItemLabels[$filters['item_id']]))) {
+    $filters['item_id'] = 'all';
+}
+
+if ($filters['type'] === '' || !in_array($filters['type'], array_merge(['all'], Inventory::movementTypes()), true)) {
+    $filters['type'] = 'all';
+}
+
+$hasMovementHistory = Inventory::movements() !== [];
+$allMovements = Inventory::movements($filters);
+$perPage = 10;
+$currentPage = max(1, (int) ($_GET['page'] ?? 1));
+$totalMovements = count($allMovements);
+$totalPages = max(1, (int) ceil($totalMovements / $perPage));
+$currentPage = min($currentPage, $totalPages);
+$offset = ($currentPage - 1) * $perPage;
+$movements = array_slice($allMovements, $offset, $perPage);
+
+if ($totalMovements > 0 && $movements === []) {
+    $currentPage = 1;
+    $offset = 0;
+    $movements = array_slice($allMovements, 0, $perPage);
+}
+
+$visibleStart = $totalMovements > 0 ? $offset + 1 : 0;
+$visibleEnd = min($offset + $perPage, $totalMovements);
+$stats = Inventory::movementStats();
+$selectedMovementItemId = (string) old_input('item_id', $filters['item_id'] !== 'all' ? $filters['item_id'] : '');
+$selectedMovementItemLabel = $selectedMovementItemId !== '' ? ($inventoryItemLabels[$selectedMovementItemId] ?? '') : '';
+$selectedFilterItemId = $filters['item_id'];
+$selectedFilterItemLabel = $selectedFilterItemId === 'all'
+    ? 'All items'
+    : ($inventoryItemLabels[$selectedFilterItemId] ?? '');
 $serviceOptions = Inventory::serviceOptions();
+$serviceLabels = [];
+foreach ($serviceOptions as $service) {
+    $serviceLabels[(string) $service['id']] = (string) $service['name'];
+}
+$selectedMovementServiceId = (string) old_input('service_id', '');
+$selectedMovementServiceValue = $selectedMovementServiceId !== '' ? $selectedMovementServiceId : '__none__';
+$selectedMovementServiceLabel = $selectedMovementServiceId !== ''
+    ? ($serviceLabels[$selectedMovementServiceId] ?? '')
+    : 'No service link';
 $movementErrors = flash_get('inventory_movement_errors', []);
 $flashMessage = flash_get('inventory_success');
 
 $pageTitle = 'Stock Movements';
 $pageEyebrow = 'Inventory movement history';
 $currentRoute = 'inventory';
-$topbarAction = ['label' => 'Add inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+
+if ($hasMovementHistory) {
+    $topbarActions = [
+        ['label' => 'Add inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'],
+        ['label' => 'Inventory list', 'href' => '/inventory/list.php', 'permission' => 'inventory.manage'],
+        ['label' => 'Low-stock report', 'href' => '/inventory/low-stock.php', 'permission' => 'inventory.manage'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Add inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -38,19 +92,25 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Stock movement history</p>
-                <h1 class="hero-title">See every stock change that moved inventory in or out.</h1>
-                <p class="hero-copy">Movements make inventory auditable, which means low-stock warnings, service usage, and manual adjustments all have a visible trail.</p>
+        <?php if (isset($movementErrors['movement'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($movementErrors['movement']) ?></div>
+        <?php endif; ?>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/inventory/list.php">Inventory list</a>
-                    <a class="action-link is-secondary" href="/inventory/low-stock.php">Low-stock report</a>
-                </div>
-            </article>
+        <section class="module-hero<?= $hasMovementHistory ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasMovementHistory): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Stock movement history</p>
+                    <h1 class="hero-title">See every stock change that moved inventory in or out.</h1>
+                    <p class="hero-copy">Movements make inventory auditable, which means low-stock warnings, service usage, and manual adjustments all have a visible trail.</p>
 
-            <aside class="module-stat-grid">
+                    <div class="hero-actions">
+                        <a class="action-link" href="/inventory/list.php">Inventory list</a>
+                        <a class="action-link is-secondary" href="/inventory/low-stock.php">Low-stock report</a>
+                    </div>
+                </article>
+            <?php endif; ?>
+
+            <aside class="module-stat-grid<?= $hasMovementHistory ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -66,8 +126,8 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Record movement</p>
                         <h3>Post a stock change</h3>
-                    </div>
                     <p>Every stock adjustment should come through here so the history remains complete.</p>
+                    </div>
                 </div>
 
                 <form class="module-form" method="post" action="/process/inventory-save.php">
@@ -78,12 +138,23 @@ require __DIR__ . '/../includes/header.php';
                     <div class="form-grid">
                         <label class="field">
                             <span>Item</span>
-                            <select name="item_id">
-                                <option value="">Select item</option>
+                            <input type="hidden" name="item_id" id="movement-item-value" value="<?= e($selectedMovementItemId) ?>">
+                            <input
+                                type="text"
+                                id="movement-item-search"
+                                value="<?= e($selectedMovementItemLabel) ?>"
+                                list="movement-item-options"
+                                autocomplete="off"
+                                placeholder="Select item"
+                                data-searchable-select-input
+                                data-searchable-select-target="movement-item-value"
+                                data-searchable-select-empty-message="Select a valid inventory item from the list."
+                            >
+                            <datalist id="movement-item-options">
                                 <?php foreach ($inventoryItems as $item): ?>
-                                    <option value="<?= e($item['id']) ?>" <?= (string) old_input('item_id', $filters['item_id'] !== 'all' ? $filters['item_id'] : '') === $item['id'] ? 'selected' : '' ?>><?= e($item['name'] . ' · ' . format_quantity((float) $item['on_hand']) . ' ' . $item['unit']) ?></option>
+                                    <option value="<?= e($inventoryItemLabels[(string) $item['id']]) ?>" data-searchable-select-id="<?= e($item['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($movementErrors['item_id'])): ?><small><?= e($movementErrors['item_id']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
@@ -107,12 +178,24 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Service link</span>
-                            <select name="service_id">
-                                <option value="">No service link</option>
+                            <input type="hidden" name="service_id" id="movement-service-value" value="<?= e($selectedMovementServiceValue) ?>">
+                            <input
+                                type="text"
+                                id="movement-service-search"
+                                value="<?= e($selectedMovementServiceLabel) ?>"
+                                list="movement-service-options"
+                                autocomplete="off"
+                                placeholder="No service link"
+                                data-searchable-select-input
+                                data-searchable-select-target="movement-service-value"
+                                data-searchable-select-empty-message="Select a valid service option from the list."
+                            >
+                            <datalist id="movement-service-options">
+                                <option value="No service link" data-searchable-select-id="__none__"></option>
                                 <?php foreach ($serviceOptions as $service): ?>
-                                    <option value="<?= e($service['id']) ?>" <?= (string) old_input('service_id') === $service['id'] ? 'selected' : '' ?>><?= e($service['name']) ?></option>
+                                    <option value="<?= e($service['name']) ?>" data-searchable-select-id="<?= e($service['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($movementErrors['service_id'])): ?><small><?= e($movementErrors['service_id']) ?></small><?php endif; ?>
                         </label>
                     </div>
@@ -144,12 +227,24 @@ require __DIR__ . '/../includes/header.php';
                     </label>
                     <label class="field">
                         <span>Item</span>
-                        <select name="item_id">
-                            <option value="all">All items</option>
+                        <input type="hidden" name="item_id" id="movement-filter-item-value" value="<?= e($selectedFilterItemId) ?>">
+                        <input
+                            type="text"
+                            id="movement-filter-item-search"
+                            value="<?= e($selectedFilterItemLabel) ?>"
+                            list="movement-filter-item-options"
+                            autocomplete="off"
+                            placeholder="All items"
+                            data-searchable-select-input
+                            data-searchable-select-target="movement-filter-item-value"
+                            data-searchable-select-empty-message="Select a valid inventory item from the list."
+                        >
+                        <datalist id="movement-filter-item-options">
+                            <option value="All items" data-searchable-select-id="all"></option>
                             <?php foreach ($inventoryItems as $item): ?>
-                                <option value="<?= e($item['id']) ?>" <?= $filters['item_id'] === $item['id'] ? 'selected' : '' ?>><?= e($item['name']) ?></option>
+                                <option value="<?= e($inventoryItemLabels[(string) $item['id']]) ?>" data-searchable-select-id="<?= e($item['id']) ?>"></option>
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                     </label>
                     <label class="field">
                         <span>Type</span>
@@ -185,7 +280,13 @@ require __DIR__ . '/../includes/header.php';
                     <p class="section-kicker">Movement ledger</p>
                     <h3>Recorded stock events</h3>
                 </div>
-                <p><?= e((string) count($movements)) ?> entries matched the current filters.</p>
+                <p>
+                    <?php if ($totalMovements > 0): ?>
+                        Showing <?= e((string) $visibleStart) ?>-<?= e((string) $visibleEnd) ?> of <?= e((string) $totalMovements) ?> entries matched the current filters.
+                    <?php else: ?>
+                        0 entries matched the current filters.
+                    <?php endif; ?>
+                </p>
             </div>
 
             <?php if ($movements === []): ?>
@@ -202,7 +303,7 @@ require __DIR__ . '/../includes/header.php';
                             <th>Type</th>
                             <th>Quantity</th>
                             <th>Stock change</th>
-                            <th>Reason</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -210,7 +311,7 @@ require __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td>
                                     <strong><?= e($movement['reference']) ?></strong>
-                                    <span><?= e(date('D, j M Y', strtotime($movement['movement_date']))) ?> · <?= e($movement['recorded_by']) ?></span>
+                                    <span><?= e(date('D, j M Y', strtotime($movement['movement_date']))) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e($movement['item_name']) ?></strong>
@@ -218,23 +319,54 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <span class="<?= e(badge_class($movement['type_tone'])) ?>"><?= e(ucwords(str_replace('_', ' ', $movement['type']))) ?></span>
-                                    <span><?= e($movement['service_name'] !== '' ? $movement['service_name'] : 'No service link') ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_quantity((float) $movement['quantity'])) ?></strong>
-                                    <span><?= e($movement['type'] === 'adjustment' ? 'Counted final quantity' : 'Units moved') ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_quantity((float) $movement['before_quantity'])) ?> → <?= e(format_quantity((float) $movement['after_quantity'])) ?></strong>
                                     <span><?= e(($movement['delta'] >= 0 ? '+' : '') . format_quantity((float) $movement['delta'])) ?></span>
                                 </td>
-                                <td>
-                                    <strong><?= e($movement['reason']) ?></strong>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/inventory/movement-view.php?id=<?= e($movement['id']) ?>" aria-label="View <?= e($movement['reference']) ?>" title="View">
+                                            <?= action_icon_svg('view') ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+
+                <?php if ($totalPages > 1): ?>
+                    <?php
+                    $pageBaseParams = [
+                        'search' => $filters['search'],
+                        'item_id' => $filters['item_id'],
+                        'type' => $filters['type'],
+                        'date_from' => $filters['date_from'],
+                        'date_to' => $filters['date_to'],
+                    ];
+                    $previousHref = '/inventory/movements.php?' . http_build_query($pageBaseParams + ['page' => $currentPage - 1]);
+                    $nextHref = '/inventory/movements.php?' . http_build_query($pageBaseParams + ['page' => $currentPage + 1]);
+                    ?>
+                    <div class="button-row list-pagination">
+                        <?php if ($currentPage > 1): ?>
+                            <a class="button-muted" href="<?= e($previousHref) ?>">Previous</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Previous</span>
+                        <?php endif; ?>
+
+                        <span>Page <?= e((string) $currentPage) ?> of <?= e((string) $totalPages) ?></span>
+
+                        <?php if ($currentPage < $totalPages): ?>
+                            <a class="button-muted" href="<?= e($nextHref) ?>">Next</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Next</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
 

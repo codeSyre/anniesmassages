@@ -15,13 +15,15 @@ $action = trim((string) ($_POST['form_action'] ?? 'item'));
 if ($action === 'movement') {
     $itemId = trim((string) ($_POST['item_id'] ?? ''));
     $returnTo = trim((string) ($_POST['return_to'] ?? '/inventory/movements.php'));
+    $serviceId = trim((string) ($_POST['service_id'] ?? ''));
+    $serviceId = $serviceId === '__none__' ? '' : $serviceId;
     $payload = [
         'item_id' => $itemId,
         'movement_date' => trim((string) ($_POST['movement_date'] ?? date('Y-m-d'))),
         'type' => trim((string) ($_POST['type'] ?? 'stock_in')),
         'quantity' => trim((string) ($_POST['quantity'] ?? '')),
         'reason' => trim((string) ($_POST['reason'] ?? '')),
-        'service_id' => trim((string) ($_POST['service_id'] ?? '')),
+        'service_id' => $serviceId,
         'recorded_by' => trim((string) ($_POST['recorded_by'] ?? 'Admin panel')),
     ];
 
@@ -33,7 +35,14 @@ if ($action === 'movement') {
         redirect_to($returnTo);
     }
 
-    $movement = Inventory::saveMovement($payload);
+    try {
+        $movement = Inventory::saveMovement($payload);
+    } catch (Throwable $exception) {
+        flash_set('inventory_movement_errors', ['movement' => 'We could not save this stock movement. Please try again.']);
+        remember_old_input($payload);
+        redirect_to($returnTo);
+    }
+
     clear_old_input();
     flash_set('inventory_success', 'Stock movement recorded successfully.');
 

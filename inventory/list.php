@@ -13,7 +13,23 @@ $filters = [
 ];
 
 $hasInventory = Inventory::all() !== [];
-$inventoryItems = Inventory::all($filters);
+$allInventoryItems = Inventory::all($filters);
+$perPage = 10;
+$currentPage = max(1, (int) ($_GET['page'] ?? 1));
+$totalItems = count($allInventoryItems);
+$totalPages = max(1, (int) ceil($totalItems / $perPage));
+$currentPage = min($currentPage, $totalPages);
+$offset = ($currentPage - 1) * $perPage;
+$inventoryItems = array_slice($allInventoryItems, $offset, $perPage);
+
+if ($totalItems > 0 && $inventoryItems === []) {
+    $currentPage = 1;
+    $offset = 0;
+    $inventoryItems = array_slice($allInventoryItems, 0, $perPage);
+}
+
+$visibleStart = $totalItems > 0 ? $offset + 1 : 0;
+$visibleEnd = min($offset + $perPage, $totalItems);
 $stats = Inventory::stats();
 $categories = Inventory::categories();
 $flashMessage = flash_get('inventory_success');
@@ -97,10 +113,16 @@ require __DIR__ . '/../includes/header.php';
                     <p class="section-kicker">Inventory register</p>
                     <h3>Current stock on hand</h3>
                 </div>
-                <p>Every quantity shown here is backed by movement history so stock changes stay auditable.</p>
+                <p>
+                    <?php if ($totalItems > 0): ?>
+                        Showing <?= e((string) $visibleStart) ?>-<?= e((string) $visibleEnd) ?> of <?= e((string) $totalItems) ?> items. Every quantity shown here is backed by movement history so stock changes stay auditable.
+                    <?php else: ?>
+                        Every quantity shown here is backed by movement history so stock changes stay auditable.
+                    <?php endif; ?>
+                </p>
             </div>
 
-            <?php if ($inventoryItems === []): ?>
+            <?php if ($allInventoryItems === []): ?>
                 <div class="empty-state">
                     <strong>No inventory items matched the current filters.</strong>
                     <p>Try clearing the search or add a new stock item.</p>
@@ -156,6 +178,33 @@ require __DIR__ . '/../includes/header.php';
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+
+                <?php if ($totalPages > 1): ?>
+                    <?php
+                    $pageBaseParams = [
+                        'search' => $filters['search'],
+                        'status' => $filters['status'],
+                        'category' => $filters['category'],
+                    ];
+                    $previousHref = '/inventory/list.php?' . http_build_query($pageBaseParams + ['page' => $currentPage - 1]);
+                    $nextHref = '/inventory/list.php?' . http_build_query($pageBaseParams + ['page' => $currentPage + 1]);
+                    ?>
+                    <div class="button-row list-pagination">
+                        <?php if ($currentPage > 1): ?>
+                            <a class="button-muted" href="<?= e($previousHref) ?>">Previous</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Previous</span>
+                        <?php endif; ?>
+
+                        <span>Page <?= e((string) $currentPage) ?> of <?= e((string) $totalPages) ?></span>
+
+                        <?php if ($currentPage < $totalPages): ?>
+                            <a class="button-muted" href="<?= e($nextHref) ?>">Next</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Next</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
 

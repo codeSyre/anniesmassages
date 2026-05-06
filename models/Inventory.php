@@ -177,6 +177,16 @@ final class Inventory
         return array_slice(self::movements(['item_id' => $itemId]), 0, $limit);
     }
 
+    public static function findMovement(string $id): ?array
+    {
+        $movement = self::databaseMovements()[$id] ?? null;
+        if ($movement === null) {
+            return null;
+        }
+
+        return self::normalizeMovement($movement, self::serviceNameMap());
+    }
+
     public static function validateItem(array $payload, ?string $ignoreId = null): array
     {
         $errors = [];
@@ -578,15 +588,21 @@ final class Inventory
 
     private static function nextReference(mysqli $conn): string
     {
-        $result = $conn->query("SELECT reference FROM inventory_movements ORDER BY created_at DESC LIMIT 1");
-        $last   = 0;
+        $result = $conn->query(
+            "SELECT reference
+             FROM inventory_movements
+             WHERE reference REGEXP '^MOV-[0-9]+$'
+             ORDER BY CAST(SUBSTRING(reference, 5) AS UNSIGNED) DESC
+             LIMIT 1"
+        );
+        $last = 0;
+
         if ($result instanceof mysqli_result) {
-            $row = $result->fetch_row();
+            $row = $result->fetch_assoc() ?: [];
             $result->free();
-            if ($row !== null) {
-                $last = (int) preg_replace('/\D+/', '', (string) $row[0]);
-            }
+            $last = (int) preg_replace('/\D+/', '', (string) ($row['reference'] ?? '0'));
         }
+
         return 'MOV-' . str_pad((string) ($last + 1), 4, '0', STR_PAD_LEFT);
     }
 
@@ -607,16 +623,28 @@ final class Inventory
     {
         $stmt = mysqli_prepare($conn, $sql);
         if (!$stmt instanceof mysqli_stmt) {
+            error_log('Inventory prepare failed: ' . mysqli_error($conn));
             return null;
         }
+
         if ($types !== '' && $params !== []) {
             $refs = [$types];
             foreach ($params as $i => $v) {
                 $refs[] = &$params[$i];
             }
-            call_user_func_array([$stmt, 'bind_param'], $refs);
+            if (!call_user_func_array([$stmt, 'bind_param'], $refs)) {
+                error_log('Inventory bind_param failed: ' . $stmt->error);
+                $stmt->close();
+                return null;
+            }
         }
-        $stmt->execute();
+
+        if (!$stmt->execute()) {
+            error_log('Inventory statement execute failed: ' . $stmt->error . ' | SQL: ' . $sql);
+            $stmt->close();
+            return null;
+        }
+
         return $stmt;
     }
 }
