@@ -50,13 +50,27 @@ final class Inventory
         ];
     }
 
-    public static function locations(): array
+    public static function storageLocations(): array
     {
         return [
-            'Front storage', 'Laundry staging', 'Main storage',
-            'Reception cabinet', 'Stone suite cabinet', 'Supply room',
-            'Treatment bar shelf A', 'Treatment bar shelf B', 'Therapy room drawer',
+            'Main storage',
+            'Supply room',
+            'Front storage',
+            'Reception cabinet',
+            'Laundry staging',
+            'Treatment bar shelf A',
+            'Treatment bar shelf B',
+            'Therapy room drawer',
+            'Stone suite cabinet',
+            'Cold storage',
+            'Retail display shelf',
+            'Dispensary cabinet',
         ];
+    }
+
+    public static function locations(): array
+    {
+        return self::storageLocations();
     }
 
     public static function movementTypes(): array
@@ -167,7 +181,7 @@ final class Inventory
     {
         $errors = [];
 
-        foreach (['name', 'sku', 'category', 'unit', 'reorder_level', 'cost_per_unit'] as $field) {
+        foreach (['name', 'sku', 'category', 'unit', 'reorder_level', 'cost_per_unit', 'location'] as $field) {
             if (trim((string) ($payload[$field] ?? '')) === '') {
                 $errors[$field] = 'This field is required.';
             }
@@ -181,6 +195,11 @@ final class Inventory
             if (($payload[$f] ?? '') !== '' && (!is_numeric((string) $payload[$f]) || (float) $payload[$f] < 0)) {
                 $errors[$f] = 'Enter a valid number that is zero or greater.';
             }
+        }
+
+        $location = trim((string) ($payload['location'] ?? ''));
+        if ($location !== '' && !in_array($location, self::storageLocations(), true)) {
+            $errors['location'] = 'Select a valid storage location from the list.';
         }
 
         $sku  = strtolower(trim((string) ($payload['sku'] ?? '')));

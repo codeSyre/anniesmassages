@@ -13,6 +13,27 @@ if ($customer === null) {
     redirect_to('/customers/list.php');
 }
 
+$selectedTagsValue = (string) old_input('tags', implode(', ', $customer['tags']));
+$selectedTags = array_values(array_unique(array_filter(array_map(
+    static fn (string $tag): string => trim($tag),
+    explode(',', $selectedTagsValue)
+), static fn (string $tag): bool => $tag !== '')));
+$suggestedTags = [];
+foreach (Customer::all() as $candidateCustomer) {
+    foreach (($candidateCustomer['tags'] ?? []) as $tag) {
+        $trimmedTag = trim((string) $tag);
+
+        if ($trimmedTag !== '') {
+            $suggestedTags[strtolower($trimmedTag)] = $trimmedTag;
+        }
+    }
+}
+foreach ($selectedTags as $tag) {
+    unset($suggestedTags[strtolower($tag)]);
+}
+$suggestedTags = array_values($suggestedTags);
+sort($suggestedTags, SORT_NATURAL | SORT_FLAG_CASE);
+
 $flashMessage = flash_get('customer_success');
 $errors = flash_get('customer_errors', []);
 
@@ -63,7 +84,30 @@ require __DIR__ . '/../includes/header.php';
 
                     <label class="field">
                         <span>Tags</span>
-                        <input type="text" name="tags" value="<?= e(implode(', ', $customer['tags'])) ?>" placeholder="premium, returning, allergy aware">
+                        <input type="hidden" name="tags" value="<?= e($selectedTagsValue) ?>" data-tag-editor-value>
+                        <div class="tag-editor" data-tag-editor>
+                            <div class="tag-editor-list" data-tag-editor-list>
+                                <?php foreach ($selectedTags as $tag): ?>
+                                    <span class="tag-editor-chip" data-tag-editor-chip data-tag-value="<?= e($tag) ?>">
+                                        <span><?= e($tag) ?></span>
+                                        <button type="button" class="tag-editor-chip-remove" data-tag-editor-remove aria-label="Remove <?= e($tag) ?>">×</button>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                            <input
+                                type="text"
+                                class="tag-editor-input"
+                                list="customer-notes-tag-suggestions"
+                                placeholder="Type a tag and press Enter"
+                                autocomplete="off"
+                                data-tag-editor-input
+                            >
+                        </div>
+                        <datalist id="customer-notes-tag-suggestions">
+                            <?php foreach ($suggestedTags as $tag): ?>
+                                <option value="<?= e($tag) ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
                     </label>
 
                     <div class="button-row">

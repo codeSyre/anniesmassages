@@ -46,6 +46,53 @@ final class Service
         return array_values(array_filter(self::rawAll(), static fn (array $service): bool => (bool) $service['active']));
     }
 
+    public static function addonOptions(): array
+    {
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            $result = $connection->query(
+                "SELECT DISTINCT addon_name
+                 FROM service_addons
+                 WHERE TRIM(COALESCE(addon_name, '')) <> ''
+                 ORDER BY addon_name ASC"
+            );
+
+            if ($result instanceof mysqli_result) {
+                $addons = [];
+
+                while ($row = $result->fetch_assoc()) {
+                    $addonName = trim((string) ($row['addon_name'] ?? ''));
+
+                    if ($addonName !== '') {
+                        $addons[] = $addonName;
+                    }
+                }
+
+                $result->free();
+
+                return array_values(array_unique($addons));
+            }
+        }
+
+        $addons = [];
+
+        foreach (self::rawAll() as $service) {
+            foreach (($service['addons'] ?? []) as $addon) {
+                $addonName = trim((string) $addon);
+
+                if ($addonName !== '') {
+                    $addons[] = $addonName;
+                }
+            }
+        }
+
+        $addons = array_values(array_unique($addons));
+        sort($addons, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $addons;
+    }
+
     public static function stats(): array
     {
         $services = self::all();
@@ -269,6 +316,37 @@ final class Service
         $records = $_SESSION['service_records'] ?? [];
         unset($records[$serviceId]);
         $_SESSION['service_records'] = $records;
+
+        return ['success' => true, 'name' => (string) $service['name']];
+    }
+
+    public static function freeze(string $serviceId): array
+    {
+        $service = self::find($serviceId);
+
+        if (!is_array($service)) {
+            return ['success' => false, 'error' => 'Service not found.'];
+        }
+
+        if (!(bool) ($service['active'] ?? false)) {
+            return ['success' => false, 'error' => 'This service is already frozen.'];
+        }
+
+        $saved = self::save([
+            'name' => $service['name'],
+            'category' => $service['category'],
+            'description' => $service['description'],
+            'price' => (string) $service['price'],
+            'duration' => (string) $service['duration'],
+            'buffer' => (string) $service['buffer'],
+            'room' => $service['room'],
+            'addons' => implode(', ', $service['addons']),
+            'active' => '0',
+        ], $serviceId);
+
+        if (!is_array($saved) || trim((string) ($saved['id'] ?? '')) === '') {
+            return ['success' => false, 'error' => 'We could not freeze this service in the database.'];
+        }
 
         return ['success' => true, 'name' => (string) $service['name']];
     }

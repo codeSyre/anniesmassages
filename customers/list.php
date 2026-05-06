@@ -10,6 +10,7 @@ $filters = [
     'search' => (string) ($_GET['search'] ?? ''),
 ];
 
+$hasCustomers = Customer::all() !== [];
 $customers = Customer::all($filters);
 $stats = Customer::stats();
 $flashMessage = flash_get('customer_success');
@@ -18,7 +19,15 @@ $errors = flash_get('customer_errors', []);
 $pageTitle = 'Customers';
 $pageEyebrow = 'Guest profiles and preferences';
 $currentRoute = 'customers';
-$topbarAction = ['label' => 'New customer', 'href' => '/customers/create.php', 'permission' => 'customers.create'];
+
+if ($hasCustomers) {
+    $topbarActions = [
+        ['label' => 'New customer', 'href' => '/customers/create.php', 'permission' => 'customers.create'],
+        ['label' => 'Book for a guest', 'href' => '/bookings/create.php', 'permission' => 'bookings.create'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New customer', 'href' => '/customers/create.php', 'permission' => 'customers.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -36,19 +45,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-danger"><?= e($errors['customer']) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Customer management</p>
-                <h1 class="hero-title">Keep every guest record rich enough to support confident booking.</h1>
-                <p class="hero-copy">Profiles, preferences, booking history, payment context, and private admin notes all live here so the front desk never has to guess.</p>
+        <section class="module-hero<?= $hasCustomers ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasCustomers): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Customer management</p>
+                    <h1 class="hero-title">Keep every guest record rich enough to support confident booking.</h1>
+                    <p class="hero-copy">Profiles, preferences, booking history, payment context, and private admin notes all live here so the front desk never has to guess.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/customers/create.php">Create customer</a>
-                    <a class="action-link is-secondary" href="/bookings/create.php">Book for a guest</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/customers/create.php">Create customer</a>
+                        <a class="action-link is-secondary" href="/bookings/create.php">Book for a guest</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasCustomers ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -90,7 +101,6 @@ require __DIR__ . '/../includes/header.php';
                         <tr>
                             <th>Guest</th>
                             <th>Status</th>
-                            <th>Preference</th>
                             <th>Visits</th>
                             <th>Spend</th>
                             <th>Next visit</th>
@@ -106,10 +116,6 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <span class="<?= e(status_badge_class($customer['status'] ?? 'active')) ?>"><?= e(ucfirst((string) ($customer['status'] ?? 'active'))) ?></span>
-                                </td>
-                                <td>
-                                    <strong><?= e($customer['preference'] !== '' ? $customer['preference'] : 'No preference recorded') ?></strong>
-                                    
                                 </td>
                                 <td>
                                     <strong><?= e((string) $customer['booking_count']) ?> bookings</strong>

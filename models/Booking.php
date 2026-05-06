@@ -183,6 +183,8 @@ final class Booking
 
     public static function save(array $payload, ?string $id = null): ?array
     {
+        require_once __DIR__ . '/Payment.php';
+
         $options = self::formOptions();
         $service = $options['services'][$payload['service_id']] ?? reset($options['services']);
         $customer = $options['customers'][$payload['customer_id']] ?? reset($options['customers']);
@@ -203,6 +205,11 @@ final class Booking
         $amountPaid = min($amountTotal, max(0.0, (float) ($payload['amount_paid'] ?? 0)));
         $status = (string) ($payload['status'] ?? 'pending');
         $paymentStatus = (string) ($payload['payment_status'] ?? 'unpaid');
+        $channel = trim((string) ($payload['channel'] ?? ''));
+
+        if (!in_array($channel, Payment::methods(), true)) {
+            $channel = 'cash';
+        }
 
         if ($amountPaid >= $amountTotal) {
             $paymentStatus = 'paid';
@@ -220,7 +227,7 @@ final class Booking
             'sort_key' => $date . ' ' . date('H:i', strtotime($start)),
             'status' => $status,
             'payment_status' => $paymentStatus,
-            'channel' => trim((string) ($payload['channel'] ?? 'admin')),
+            'channel' => $channel,
             'customer' => $customer,
             'service' => $service,
             'staff' => $staff,
@@ -408,13 +415,111 @@ final class Booking
         return $updated;
     }
 
+    public static function cancel(string $bookingId): array
+    {
+        $booking = self::find($bookingId);
+
+        if ($booking === null) {
+            return ['success' => false, 'error' => 'Booking not found.'];
+        }
+
+        if ($booking['status'] === 'cancelled') {
+            return ['success' => false, 'error' => 'This booking has already been cancelled.'];
+        }
+
+        if (in_array($booking['status'], ['completed', 'no_show'], true)) {
+            return ['success' => false, 'error' => 'Completed or no-show bookings cannot be cancelled.'];
+        }
+
+        $historyMeta = sprintf(
+            'Cancelled via admin panel on %s at %s%s',
+            date('F j, Y'),
+            date('H:i'),
+            (float) ($booking['amount_paid'] ?? 0) > 0
+                ? '. Existing payments remain recorded and can be refunded separately.'
+                : '.'
+        );
+
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            mysqli_begin_transaction($connection);
+
+            try {
+                $statement = self::prepare(
+                    $connection,
+                    'UPDATE bookings SET status = ?, updated_at = NOW() WHERE id = ?',
+                    'ss',
+                    ['cancelled', $bookingId]
+                );
+
+                if (!$statement instanceof mysqli_stmt) {
+                    throw new RuntimeException('Unable to cancel booking.');
+                }
+                $statement->close();
+
+                self::appendHistory(
+                    $connection,
+                    $bookingId,
+                    'Booking cancelled',
+                    $historyMeta,
+                    'danger'
+                );
+
+                mysqli_commit($connection);
+
+                $updatedBooking = self::find($bookingId);
+
+                return [
+                    'success' => $updatedBooking !== null,
+                    'booking' => $updatedBooking,
+                    'reference' => (string) ($updatedBooking['reference'] ?? $booking['reference'] ?? 'Booking'),
+                    'error' => $updatedBooking === null ? 'Booking was cancelled but could not be reloaded.' : null,
+                ];
+            } catch (Throwable $exception) {
+                mysqli_rollback($connection);
+                error_log('Booking cancellation failed: ' . $exception->getMessage());
+
+                return ['success' => false, 'error' => 'Booking could not be cancelled.'];
+            }
+        }
+
+        if (function_exists('db_configured') && db_configured()) {
+            return ['success' => false, 'error' => 'Booking could not be cancelled.'];
+        }
+
+        $booking['status'] = 'cancelled';
+        $booking['history'][] = [
+            'label' => 'Booking cancelled',
+            'meta' => $historyMeta,
+            'tone' => 'danger',
+        ];
+        $_SESSION['booking_overrides'][$bookingId] = $booking;
+
+        return [
+            'success' => true,
+            'booking' => $booking,
+            'reference' => (string) ($booking['reference'] ?? 'Booking'),
+        ];
+    }
+
     public static function validate(array $payload, ?string $ignoreBookingId = null): array
     {
         $errors = [];
 
-        foreach (['customer_id', 'service_id', 'staff_id', 'date', 'start_time', 'status', 'payment_status'] as $field) {
+        foreach (['customer_id', 'service_id', 'staff_id', 'date', 'start_time', 'status', 'payment_status', 'channel'] as $field) {
             if (trim((string) ($payload[$field] ?? '')) === '') {
                 $errors[$field] = 'This field is required.';
+            }
+        }
+
+        if (!isset($errors['channel'])) {
+            require_once __DIR__ . '/Payment.php';
+
+            $channel = trim((string) ($payload['channel'] ?? ''));
+
+            if (!in_array($channel, Payment::methods(), true)) {
+                $errors['channel'] = 'Select a valid payment channel.';
             }
         }
 
@@ -612,7 +717,7 @@ final class Booking
             'sort_key' => $date . ' ' . $time,
             'status' => (string) ($row['status'] ?? 'pending'),
             'payment_status' => $paymentStatus,
-            'channel' => trim((string) ($row['channel'] ?? 'admin')) ?: 'admin',
+            'channel' => trim((string) ($row['channel'] ?? 'cash')) ?: 'cash',
             'customer' => $customer,
             'service' => $service,
             'staff' => $staff,

@@ -12,6 +12,7 @@ $filters = [
     'category' => (string) ($_GET['category'] ?? 'all'),
 ];
 
+$hasInventory = Inventory::all() !== [];
 $inventoryItems = Inventory::all($filters);
 $stats = Inventory::stats();
 $categories = Inventory::categories();
@@ -20,7 +21,15 @@ $flashMessage = flash_get('inventory_success');
 $pageTitle = 'Inventory';
 $pageEyebrow = 'Stock levels and supply flow';
 $currentRoute = 'inventory';
-$topbarAction = ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+
+if ($hasInventory) {
+    $topbarActions = [
+        ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'],
+        ['label' => 'Stock movement history', 'href' => '/inventory/movements.php', 'permission' => 'inventory.manage'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+}
 
 
 require __DIR__ . '/../includes/header.php';
@@ -35,19 +44,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Inventory management</p>
-                <h1 class="hero-title">Track every supply item before shortages disrupt bookings.</h1>
-                <p class="hero-copy">Keep consumables, room setup stock, equipment, and service-linked usage visible from one operational stock layer.</p>
+        <section class="module-hero<?= $hasInventory ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasInventory): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Inventory management</p>
+                    <h1 class="hero-title">Track every supply item before shortages disrupt bookings.</h1>
+                    <p class="hero-copy">Keep consumables, room setup stock, equipment, and service-linked usage visible from one operational stock layer.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/inventory/create.php">Add inventory item</a>
-                    <a class="action-link is-secondary" href="/inventory/movements.php">Stock movement history</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/inventory/create.php">Add inventory item</a>
+                        <a class="action-link is-secondary" href="/inventory/movements.php">Stock movement history</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasInventory ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -112,7 +123,7 @@ require __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td>
                                     <strong><?= e($item['name']) ?></strong>
-                                    <span><?= e($item['sku']) ?> · <?= e($item['location']) ?></span>
+                                    <span><?= e($item['sku']) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e($item['category']) ?></strong>
@@ -131,9 +142,15 @@ require __DIR__ . '/../includes/header.php';
                                 <td>
                                     <span class="<?= e(badge_class($item['stock_tone'])) ?>"><?= e(ucwords(str_replace('_', ' ', $item['stock_status']))) ?></span>
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/inventory/edit.php?id=<?= e($item['id']) ?>">Edit</a>
-                                    <a href="/inventory/movements.php?item_id=<?= e($item['id']) ?>">Movements</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/inventory/edit.php?id=<?= e($item['id']) ?>" aria-label="Edit <?= e($item['name']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/inventory/movements.php?item_id=<?= e($item['id']) ?>" aria-label="View stock movements for <?= e($item['name']) ?>" title="Movements">
+                                            <?= action_icon_svg('history') ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

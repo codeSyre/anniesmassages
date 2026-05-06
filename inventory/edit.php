@@ -18,6 +18,7 @@ $movementErrors = flash_get('inventory_movement_errors', []);
 $flashMessage = flash_get('inventory_success');
 $serviceOptions = Inventory::serviceOptions();
 $categories = Inventory::categories();
+$locationOptions = Inventory::storageLocations();
 $recentMovements = Inventory::recentMovements($inventoryItem['id']);
 $selectedServices = old_input('used_in_services', $inventoryItem['used_in_services']);
 $selectedServices = is_array($selectedServices) ? $selectedServices : $inventoryItem['used_in_services'];
@@ -127,18 +128,41 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Storage location</span>
-                            <input type="text" name="location" value="<?= e((string) old_input('location', $inventoryItem['location'])) ?>">
+                            <?php $selectedLocation = (string) old_input('location', $inventoryItem['location']); ?>
+                            <input type="hidden" name="location" id="inventory-location-value" value="<?= e($selectedLocation) ?>">
+                            <input
+                                type="text"
+                                id="inventory-location-search"
+                                value="<?= e($selectedLocation) ?>"
+                                list="inventory-location-options"
+                                autocomplete="off"
+                                placeholder="Select storage location"
+                                data-searchable-select-input
+                                data-searchable-select-target="inventory-location-value"
+                                data-searchable-select-empty-message="Select a valid storage location from the list."
+                            >
+                            <datalist id="inventory-location-options">
+                                <?php foreach ($locationOptions as $locationOption): ?>
+                                    <option value="<?= e($locationOption) ?>" data-searchable-select-id="<?= e($locationOption) ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                            <?php if (isset($itemErrors['location'])): ?><small><?= e($itemErrors['location']) ?></small><?php endif; ?>
                         </label>
                     </div>
 
-                    <label class="field">
-                        <span>Used in services</span>
-                        <select name="used_in_services[]" multiple>
+                    <fieldset class="field field-checkgroup">
+                        <legend>Used in services</legend>
+                        <?php if ($serviceOptions === []): ?>
+                            <p class="field-empty-note">No services created yet.</p>
+                        <?php else: ?>
                             <?php foreach ($serviceOptions as $service): ?>
-                                <option value="<?= e($service['id']) ?>" <?= in_array($service['id'], $selectedServices, true) ? 'selected' : '' ?>><?= e($service['name']) ?></option>
+                                <label class="check-item">
+                                    <input type="checkbox" name="used_in_services[]" value="<?= e($service['id']) ?>" <?= in_array($service['id'], $selectedServices, true) ? 'checked' : '' ?>>
+                                    <span><?= e($service['name']) ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
-                    </label>
+                        <?php endif; ?>
+                    </fieldset>
 
                     <label class="field">
                         <span>Notes</span>

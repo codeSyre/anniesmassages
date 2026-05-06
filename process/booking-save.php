@@ -5,14 +5,35 @@ require_once __DIR__ . '/../models/Booking.php';
 require_once __DIR__ . '/../models/Payment.php';
 
 $currentUser = require_login();
-$bookingId = trim((string) ($_POST['id'] ?? ''));
-$permission = $bookingId === '' ? 'bookings.create' : 'bookings.update';
-
-require_permission($permission);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirect_to('/bookings/list.php');
 }
+
+$action = trim((string) ($_POST['action'] ?? 'save_booking'));
+$bookingId = trim((string) ($_POST['id'] ?? ''));
+
+if ($action === 'cancel_booking') {
+    require_permission('bookings.update');
+
+    if ($bookingId === '') {
+        flash_set('booking_errors', ['booking' => 'Booking not found.']);
+        redirect_to('/bookings/list.php');
+    }
+
+    $result = Booking::cancel($bookingId);
+
+    if (!($result['success'] ?? false)) {
+        flash_set('booking_errors', ['booking' => (string) ($result['error'] ?? 'Booking could not be cancelled.')]);
+        redirect_to('/bookings/view.php?id=' . urlencode($bookingId));
+    }
+
+    flash_set('booking_success', (string) ($result['reference'] ?? 'Booking') . ' was cancelled successfully.');
+    redirect_to('/bookings/view.php?id=' . urlencode($bookingId));
+}
+
+$permission = $bookingId === '' ? 'bookings.create' : 'bookings.update';
+require_permission($permission);
 
 $payload = [
     'customer_id' => trim((string) ($_POST['customer_id'] ?? '')),
@@ -23,7 +44,7 @@ $payload = [
     'status' => trim((string) ($_POST['status'] ?? 'pending')),
     'payment_status' => trim((string) ($_POST['payment_status'] ?? 'unpaid')),
     'amount_paid' => trim((string) ($_POST['amount_paid'] ?? '0')),
-    'channel' => trim((string) ($_POST['channel'] ?? 'front desk')),
+    'channel' => trim((string) ($_POST['channel'] ?? '')),
     'notes' => trim((string) ($_POST['notes'] ?? '')),
 ];
 

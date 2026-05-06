@@ -11,6 +11,7 @@ $filters = [
     'status' => (string) ($_GET['status'] ?? 'all'),
 ];
 
+$hasStaff = Staff::all() !== [];
 $staffMembers = Staff::all($filters);
 $stats = Staff::stats();
 $flashMessage = flash_get('staff_success');
@@ -19,7 +20,15 @@ $errors = flash_get('staff_errors', []);
 $pageTitle = 'Staff';
 $pageEyebrow = 'Team management';
 $currentRoute = 'staff';
-$topbarAction = ['label' => 'New Staff', 'href' => '/staff/create.php', 'permission' => 'staff.create'];
+
+if ($hasStaff) {
+    $topbarActions = [
+        ['label' => 'New Staff', 'href' => '/staff/create.php', 'permission' => 'staff.create'],
+        ['label' => 'Open availability', 'href' => '/scheduling/availability.php', 'permission' => 'bookings.view'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New Staff', 'href' => '/staff/create.php', 'permission' => 'staff.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -37,19 +46,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-danger"><?= e($errors['staff']) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Staff management</p>
-                <h1 class="hero-title">Manage staff members, workload, status, and payroll links from one place.</h1>
-                <p class="hero-copy">Profiles here feed bookings, scheduling, and later payroll runs. Keep specialties, availability expectations, and compensation structure accurate.</p>
+        <section class="module-hero<?= $hasStaff ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasStaff): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Staff management</p>
+                    <h1 class="hero-title">Manage staff members, workload, status, and payroll links from one place.</h1>
+                    <p class="hero-copy">Profiles here feed bookings, scheduling, and later payroll runs. Keep specialties, availability expectations, and compensation structure accurate.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/staff/create.php">Add staff</a>
-                    <a class="action-link is-secondary" href="/scheduling/availability.php">Open availability</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/staff/create.php">Add staff</a>
+                        <a class="action-link is-secondary" href="/scheduling/availability.php">Open availability</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasStaff ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>

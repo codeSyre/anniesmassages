@@ -262,6 +262,75 @@ final class Staff
         ];
     }
 
+    public static function setOnLeave(string $staffId): array
+    {
+        $member = self::find($staffId);
+
+        if ($member === null) {
+            return [
+                'success' => false,
+                'error' => 'Staff member not found.',
+            ];
+        }
+
+        if (($member['status'] ?? '') === 'on_leave') {
+            return [
+                'success' => false,
+                'error' => 'This staff member is already marked as on leave.',
+            ];
+        }
+
+        if (($member['status'] ?? '') === 'suspended') {
+            return [
+                'success' => false,
+                'error' => 'Suspended staff cannot be marked on leave from scheduling.',
+            ];
+        }
+
+        if (!self::updateStatus($staffId, 'on_leave')) {
+            return [
+                'success' => false,
+                'error' => 'Unable to mark this staff member as on leave.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'name' => $member['name'],
+        ];
+    }
+
+    public static function returnFromLeave(string $staffId): array
+    {
+        $member = self::find($staffId);
+
+        if ($member === null) {
+            return [
+                'success' => false,
+                'error' => 'Staff member not found.',
+            ];
+        }
+
+        if (($member['status'] ?? '') !== 'on_leave') {
+            return [
+                'success' => false,
+                'error' => 'This staff member is not currently marked as on leave.',
+            ];
+        }
+
+        if (!self::updateStatus($staffId, 'active')) {
+            return [
+                'success' => false,
+                'error' => 'Unable to return this staff member from leave.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'name' => $member['name'],
+        ];
+    }
+
     public static function delete(string $staffId): array
     {
         $member = self::find($staffId);
@@ -606,6 +675,40 @@ final class Staff
     private static function connection(): ?mysqli
     {
         return function_exists('db_connection') ? db_connection() : null;
+    }
+
+    private static function updateStatus(string $staffId, string $status): bool
+    {
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            $staffStatement = self::prepare(
+                $connection,
+                'UPDATE staff SET status = ?, updated_at = NOW() WHERE id = ?',
+                'ss',
+                [$status, $staffId]
+            );
+
+            if (!$staffStatement instanceof mysqli_stmt) {
+                return false;
+            }
+            $staffStatement->close();
+
+            return true;
+        }
+
+        $records = $_SESSION['staff_records'] ?? [];
+        $existing = $records[$staffId] ?? self::baseRecords()[$staffId] ?? null;
+
+        if (!is_array($existing)) {
+            return false;
+        }
+
+        $existing['status'] = $status;
+        $records[$staffId] = $existing;
+        $_SESSION['staff_records'] = $records;
+
+        return true;
     }
 
     public static function defaultLoginPassword(): string

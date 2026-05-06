@@ -47,6 +47,21 @@ require __DIR__ . '/../includes/header.php';
                 <div class="hero-actions">
                     <a class="action-link" href="/services/edit.php?id=<?= e($service['id']) ?>">Edit service</a>
                     <a class="action-link is-secondary" href="/services/list.php">Back to services</a>
+                    <?php if ((bool) ($service['active'] ?? false)): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/service-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Freeze service?"
+                            data-confirm-message="Freeze <?= e($service['name']) ?>? Use this when the service is temporarily unavailable, for example when a required add-on or setup item is out of stock. Historical records will be preserved."
+                            data-confirm-submit-label="Freeze service"
+                        >
+                            <input type="hidden" name="action" value="freeze_service">
+                            <input type="hidden" name="id" value="<?= e($service['id']) ?>">
+                            <button class="button-warning" type="submit">Freeze</button>
+                        </form>
+                    <?php endif; ?>
                     <?php if (($service['can_delete'] ?? false) === true): ?>
                         <form
                             class="hero-action-form"

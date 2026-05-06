@@ -11,6 +11,7 @@ $filters = [
     'status' => (string) ($_GET['status'] ?? 'all'),
 ];
 
+$hasServices = Service::all() !== [];
 $services = Service::all($filters);
 $stats = Service::stats();
 $flashMessage = flash_get('service_success');
@@ -19,7 +20,14 @@ $errors = flash_get('service_errors', []);
 $pageTitle = 'Services';
 $pageEyebrow = 'Service menu management';
 $currentRoute = 'services';
-$topbarAction = ['label' => 'New service', 'href' => '/services/create.php', 'permission' => 'services.create'];
+
+if ($hasServices) {
+    $topbarActions = [
+        ['label' => 'New service', 'href' => '/services/create.php', 'permission' => 'services.create'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New service', 'href' => '/services/create.php', 'permission' => 'services.create'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -37,19 +45,20 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-danger"><?= e($errors['service']) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Services management</p>
-                <h1 class="hero-title">Control the massage menu without touching code.</h1>
-                <p class="hero-copy">Set prices, durations, buffers, add-ons, and activation state so the booking flow always reflects the real studio offering.</p>
+        <section class="module-hero<?= $hasServices ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasServices): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Services management</p>
+                    <h1 class="hero-title">Control the massage menu without touching code.</h1>
+                    <p class="hero-copy">Set prices, durations, buffers, add-ons, and activation state so the booking flow always reflects the real studio offering.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/services/create.php">Create service</a>
-                    <a class="action-link is-secondary" href="/bookings/create.php">Test in booking flow</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/services/create.php">Create service</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasServices ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -107,11 +116,9 @@ require __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td>
                                     <strong><?= e($service['name']) ?></strong>
-                                    <span><?= e($service['room']) ?> · <?= e($service['description']) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e($service['category']) ?></strong>
-                                    <span><?= e(implode(' · ', array_slice($service['addons'], 0, 2))) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e((string) $service['duration']) ?> min</strong>
@@ -134,6 +141,23 @@ require __DIR__ . '/../includes/header.php';
                                         <a class="icon-action-button" href="/services/edit.php?id=<?= e($service['id']) ?>" aria-label="Edit <?= e($service['name']) ?>" title="Edit">
                                             <?= action_icon_svg('edit') ?>
                                         </a>
+                                        <?php if ((bool) ($service['active'] ?? false)): ?>
+                                            <form
+                                                class="inline-action-form"
+                                                method="post"
+                                                action="/process/service-save.php"
+                                                data-confirm-dialog-form
+                                                data-confirm-title="Freeze service?"
+                                                data-confirm-message="Freeze <?= e($service['name']) ?>? Use this when the service is temporarily unavailable, for example when a required add-on or setup item is out of stock. Historical records will be preserved."
+                                                data-confirm-submit-label="Freeze service"
+                                            >
+                                                <input type="hidden" name="action" value="freeze_service">
+                                                <input type="hidden" name="id" value="<?= e($service['id']) ?>">
+                                                <button class="icon-action-button icon-action-button-warning" type="submit" aria-label="Freeze <?= e($service['name']) ?>" title="Freeze">
+                                                    <?= action_icon_svg('freeze') ?>
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                         <?php if (($service['can_delete'] ?? false) === true): ?>
                                             <form
                                                 class="inline-action-form inline-action-form-danger"

@@ -9,11 +9,20 @@ require_permission('inventory.manage');
 $inventoryItems = Inventory::lowStockItems();
 $stats = Inventory::lowStockSummary();
 $flashMessage = flash_get('inventory_success');
+$hasLowStockItems = $inventoryItems !== [];
 
 $pageTitle = 'Low Stock Report';
 $pageEyebrow = 'Inventory risk view';
 $currentRoute = 'inventory';
-$topbarAction = ['label' => 'Record movement', 'href' => '/inventory/movements.php'];
+
+if ($hasLowStockItems) {
+    $topbarActions = [
+        ['label' => 'Record movement', 'href' => '/inventory/movements.php'],
+        ['label' => 'Open filtered inventory', 'href' => '/inventory/list.php?status=low_stock'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Record movement', 'href' => '/inventory/movements.php'];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -27,19 +36,21 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Low-stock report</p>
-                <h1 class="hero-title">See which supply items are closest to blocking operations.</h1>
-                <p class="hero-copy">This report keeps the front desk and operations aligned on the items most likely to affect service delivery, room setup, or treatment quality.</p>
+        <section class="module-hero<?= $hasLowStockItems ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasLowStockItems): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Low-stock report</p>
+                    <h1 class="hero-title">See which supply items are closest to blocking operations.</h1>
+                    <p class="hero-copy">This report keeps the front desk and operations aligned on the items most likely to affect service delivery, room setup, or treatment quality.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/inventory/movements.php">Record restock</a>
-                    <a class="action-link is-secondary" href="/inventory/list.php?status=low_stock">Open filtered inventory</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/inventory/movements.php">Record restock</a>
+                        <a class="action-link is-secondary" href="/inventory/list.php?status=low_stock">Open filtered inventory</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasLowStockItems ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -98,9 +109,15 @@ require __DIR__ . '/../includes/header.php';
                                     <strong><?= e(format_money((float) $item['reorder_gap'] * (float) $item['cost_per_unit'])) ?></strong>
                                     <span><?= e(format_money((float) $item['cost_per_unit'])) ?> per <?= e($item['unit']) ?></span>
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/inventory/edit.php?id=<?= e($item['id']) ?>">Edit</a>
-                                    <a href="/inventory/movements.php?item_id=<?= e($item['id']) ?>">Restock</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/inventory/edit.php?id=<?= e($item['id']) ?>" aria-label="Edit <?= e($item['name']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/inventory/movements.php?item_id=<?= e($item['id']) ?>" aria-label="Record stock movement for <?= e($item['name']) ?>" title="Restock">
+                                            <?= action_icon_svg('history') ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

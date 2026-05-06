@@ -326,6 +326,50 @@ final class Scheduling
         return $errors;
     }
 
+    public static function validateLeavePeriod(array $payload): array
+    {
+        $errors = [];
+
+        if (trim((string) ($payload['staff_id'] ?? '')) === '') {
+            $errors['staff'] = 'Select a therapist first.';
+        }
+
+        if (trim((string) ($payload['start_date'] ?? '')) === '') {
+            $errors['start_date'] = 'Leave start date is required.';
+        }
+
+        if (trim((string) ($payload['end_date'] ?? '')) === '') {
+            $errors['end_date'] = 'Leave end date is required.';
+        }
+
+        if ($errors === []) {
+            $startDate = (string) ($payload['start_date'] ?? '');
+            $endDate = (string) ($payload['end_date'] ?? '');
+
+            if ($endDate < $startDate) {
+                $errors['end_date'] = 'Leave end date must be on or after the start date.';
+            }
+        }
+
+        if ($errors === []) {
+            $staffId = (string) ($payload['staff_id'] ?? '');
+            $startDate = (string) ($payload['start_date'] ?? '');
+            $endDate = (string) ($payload['end_date'] ?? '');
+            $conflictingBookings = self::bookingsForStaffRange($staffId, $startDate, $endDate);
+
+            if ($conflictingBookings !== []) {
+                $firstConflict = $conflictingBookings[0];
+                $errors['staff'] = 'This leave period conflicts with existing bookings, starting with '
+                    . (string) ($firstConflict['reference'] ?? 'a booking')
+                    . ' on '
+                    . date('j M Y', strtotime((string) ($firstConflict['date'] ?? $startDate)))
+                    . '. Reassign, reschedule, or cancel those bookings first.';
+            }
+        }
+
+        return $errors;
+    }
+
     public static function saveBlockedSlot(array $payload): array
     {
         $record = [
@@ -372,6 +416,117 @@ final class Scheduling
         return $record;
     }
 
+    public static function saveLeavePeriod(array $payload): array
+    {
+        $staffId = trim((string) ($payload['staff_id'] ?? ''));
+        $startDate = trim((string) ($payload['start_date'] ?? ''));
+        $endDate = trim((string) ($payload['end_date'] ?? ''));
+        $note = trim((string) ($payload['leave_note'] ?? ''));
+        $settings = self::slotSettings();
+        $fullDayStart = (string) ($settings['day_start'] ?? '08:00');
+        $fullDayEnd = (string) ($settings['day_end'] ?? '18:00');
+        $reason = 'On leave' . ($note !== '' ? ' · ' . $note : '');
+        $existingBlocks = self::blockedSlots();
+        $created = 0;
+
+        for ($date = $startDate; $date <= $endDate; $date = date('Y-m-d', strtotime($date . ' +1 day'))) {
+            $duplicate = array_filter($existingBlocks, static function (array $block) use ($staffId, $date, $fullDayStart, $fullDayEnd): bool {
+                return ($block['staff_id'] ?? '') === $staffId
+                    && ($block['date'] ?? '') === $date
+                    && ($block['start'] ?? '') === $fullDayStart
+                    && ($block['end'] ?? '') === $fullDayEnd
+                    && stripos((string) ($block['reason'] ?? ''), 'On leave') === 0;
+            });
+
+            if ($duplicate !== []) {
+                continue;
+            }
+
+            self::saveBlockedSlot([
+                'date' => $date,
+                'start_time' => $fullDayStart,
+                'end_time' => $fullDayEnd,
+                'staff_id' => $staffId,
+                'reason' => $reason,
+            ]);
+            $created++;
+        }
+
+        return [
+            'created_count' => $created,
+            'reason' => $reason,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ];
+    }
+
+    public static function leaveBlocksForStaff(string $staffId): array
+    {
+        return array_values(array_filter(self::blockedSlots(), static function (array $block) use ($staffId): bool {
+            return ($block['staff_id'] ?? '') === $staffId
+                && stripos((string) ($block['reason'] ?? ''), 'On leave') === 0;
+        }));
+    }
+
+    public static function clearLeaveBlocksForStaff(string $staffId, ?string $fromDate = null): int
+    {
+        $thresholdDate = $fromDate ?? date('Y-m-d');
+        $connection = self::connection();
+
+        if ($connection instanceof mysqli) {
+            $statement = $connection->prepare(
+                "DELETE FROM blocked_periods
+                 WHERE staff_id = ?
+                   AND block_date >= ?
+                   AND LOWER(reason) LIKE 'on leave%'"
+            );
+
+            if (!$statement instanceof mysqli_stmt) {
+                error_log('Scheduling leave-block delete prepare failed: ' . $connection->error);
+
+                return 0;
+            }
+
+            $statement->bind_param('ss', $staffId, $thresholdDate);
+
+            if (!$statement->execute()) {
+                error_log('Scheduling leave-block delete execute failed: ' . $statement->error);
+                $statement->close();
+
+                return 0;
+            }
+
+            $deletedRows = $statement->affected_rows;
+            $statement->close();
+
+            return max(0, $deletedRows);
+        }
+
+        $stored = $_SESSION['blocked_slots'] ?? [];
+        $deletedCount = 0;
+
+        foreach ($stored as $id => $block) {
+            if (($block['staff_id'] ?? '') !== $staffId) {
+                continue;
+            }
+
+            if (($block['date'] ?? '') < $thresholdDate) {
+                continue;
+            }
+
+            if (stripos((string) ($block['reason'] ?? ''), 'On leave') !== 0) {
+                continue;
+            }
+
+            unset($stored[$id]);
+            $deletedCount++;
+        }
+
+        $_SESSION['blocked_slots'] = $stored;
+
+        return $deletedCount;
+    }
+
     public static function availabilityOverview(): array
     {
         $profiles = self::weeklyAvailabilityProfiles();
@@ -382,12 +537,15 @@ final class Scheduling
             $days = $profiles[$staff['id']]['days'] ?? self::defaultAvailabilityDays();
             $enabledDays = array_filter($days, static fn (array $day): bool => (bool) $day['enabled']);
             $todayWindow = $days[$todayKey] ?? ['enabled' => false, 'start' => '', 'end' => ''];
+            $isOnLeave = ($staff['status'] ?? '') === 'on_leave';
 
             $overview[] = [
                 'staff' => $staff,
                 'enabled_days' => count($enabledDays),
-                'today' => $todayWindow['enabled'] ? ($todayWindow['start'] . ' - ' . $todayWindow['end']) : 'Unavailable',
-                'summary' => $staff['capacity'] . ' · ' . count($enabledDays) . ' days active this week',
+                'today' => $isOnLeave ? 'On leave' : ($todayWindow['enabled'] ? ($todayWindow['start'] . ' - ' . $todayWindow['end']) : 'Unavailable'),
+                'summary' => $isOnLeave
+                    ? ($staff['capacity'] . ' · currently on leave')
+                    : ($staff['capacity'] . ' · ' . count($enabledDays) . ' days active this week'),
             ];
         }
 
@@ -510,6 +668,14 @@ final class Scheduling
             return 'Only staff with the therapist role can be assigned therapy sessions.';
         }
 
+        if (($staff['status'] ?? '') === 'on_leave') {
+            return 'This therapist is currently on leave.';
+        }
+
+        if (($staff['status'] ?? '') === 'suspended') {
+            return 'This therapist is currently suspended and cannot take bookings.';
+        }
+
         $profiles = self::weeklyAvailabilityProfiles();
         $dayKey = strtolower(date('l', strtotime($date)));
         $window = $profiles[$staffId]['days'][$dayKey] ?? ['enabled' => false, 'start' => '', 'end' => ''];
@@ -546,6 +712,9 @@ final class Scheduling
     {
         $bookings = self::bookingsForStaffDate($staffId, $date);
         $blocked = self::blockedForDate($date, $staffId);
+        $leaveBlocks = array_values(array_filter($blocked, static function (array $block): bool {
+            return stripos((string) ($block['reason'] ?? ''), 'On leave') === 0;
+        }));
         $openSlots = self::rawSlotsForStaff($staffId, $date, (int) self::slotSettings()['default_duration']);
         $occupiedMinutes = array_sum(array_map(static fn (array $booking): int => (int) $booking['duration'], $bookings));
 
@@ -555,6 +724,19 @@ final class Scheduling
             'open_slots' => count($openSlots),
             'blocked_count' => count($blocked),
             'occupied_minutes' => $occupiedMinutes,
+            'is_leave_day' => $leaveBlocks !== [],
+            'leave_label' => $leaveBlocks !== [] ? (string) ($leaveBlocks[0]['reason'] ?? 'On leave') : '',
+            'booking_entries' => array_map(static function (array $booking): array {
+                $status = (string) ($booking['status'] ?? 'pending');
+                $isOverduePending = $status === 'pending' && (string) ($booking['date'] ?? '') < date('Y-m-d');
+
+                return [
+                    'id' => (string) $booking['id'],
+                    'label' => $booking['time'] . ' ' . $booking['service']['name'],
+                    'status' => $status,
+                    'is_overdue_pending' => $isOverduePending,
+                ];
+            }, $bookings),
             'labels' => array_map(static fn (array $booking): string => $booking['time'] . ' ' . $booking['service']['name'], array_slice($bookings, 0, 2)),
         ];
     }
@@ -563,8 +745,7 @@ final class Scheduling
     {
         return array_values(array_filter(Booking::all(), static function (array $booking) use ($staffId, $date): bool {
             return $booking['staff']['id'] === $staffId
-                && $booking['date'] === $date
-                && !in_array($booking['status'], ['cancelled'], true);
+                && $booking['date'] === $date;
         }));
     }
 
@@ -579,8 +760,24 @@ final class Scheduling
         }));
     }
 
+    private static function bookingsForStaffRange(string $staffId, string $startDate, string $endDate): array
+    {
+        return array_values(array_filter(Booking::all(), static function (array $booking) use ($staffId, $startDate, $endDate): bool {
+            return ($booking['staff']['id'] ?? '') === $staffId
+                && ($booking['date'] ?? '') >= $startDate
+                && ($booking['date'] ?? '') <= $endDate
+                && !in_array((string) ($booking['status'] ?? ''), ['cancelled'], true);
+        }));
+    }
+
     private static function rawSlotsForStaff(string $staffId, string $date, int $duration): array
     {
+        $staff = Staff::find($staffId);
+
+        if (($staff['status'] ?? '') === 'on_leave' || ($staff['status'] ?? '') === 'suspended') {
+            return [];
+        }
+
         $profiles = self::weeklyAvailabilityProfiles();
         $settings = self::slotSettings();
         $dayKey = strtolower(date('l', strtotime($date)));

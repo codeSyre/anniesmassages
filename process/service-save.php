@@ -12,6 +12,25 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $serviceId = trim((string) ($_POST['id'] ?? ''));
 $action = trim((string) ($_POST['action'] ?? 'save_service'));
 
+if ($action === 'freeze_service') {
+    require_permission('services.update');
+
+    if ($serviceId === '') {
+        flash_set('service_errors', ['service' => 'Service not found.']);
+        redirect_to('/services/list.php');
+    }
+
+    $result = Service::freeze($serviceId);
+
+    if (!($result['success'] ?? false)) {
+        flash_set('service_errors', ['service' => (string) ($result['error'] ?? 'Service could not be frozen.')]);
+        redirect_to('/services/view.php?id=' . urlencode($serviceId));
+    }
+
+    flash_set('service_success', (string) ($result['name'] ?? 'Service') . ' was frozen successfully.');
+    redirect_to('/services/view.php?id=' . urlencode($serviceId));
+}
+
 if ($action === 'delete_service') {
     require_permission('services.delete');
 

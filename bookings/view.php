@@ -14,6 +14,9 @@ if ($booking === null) {
 }
 
 $flashMessage = flash_get('booking_success');
+$errors = flash_get('booking_errors', []);
+$canCancelBooking = user_can('bookings.update')
+    && !in_array($booking['status'], ['completed', 'cancelled', 'no_show'], true);
 $pageTitle = 'Booking Details';
 $pageEyebrow = $booking['reference'];
 $currentRoute = 'bookings';
@@ -31,6 +34,10 @@ require __DIR__ . '/../includes/header.php';
             <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
         <?php endif; ?>
 
+        <?php if (isset($errors['booking'])): ?>
+            <div class="notice-banner notice-banner-danger"><?= e($errors['booking']) ?></div>
+        <?php endif; ?>
+
         <section class="module-hero">
             <article class="hero-panel">
                 <p class="hero-eyebrow">Booking profile</p>
@@ -40,8 +47,22 @@ require __DIR__ . '/../includes/header.php';
                 <div class="hero-actions">
                     <a class="action-link" href="/bookings/edit.php?id=<?= e($booking['id']) ?>">Edit booking</a>
                     <a class="action-link is-secondary" href="/payments/create.php?booking_id=<?= e($booking['id']) ?>">Record payment</a>
-                    <a class="action-link is-secondary" href="/notifications/logs.php?booking_id=<?= e($booking['id']) ?>">Notification logs</a>
                     <a class="action-link is-secondary" href="/bookings/list.php">Back to list</a>
+                    <?php if ($canCancelBooking): ?>
+                        <form
+                            class="hero-action-form"
+                            method="post"
+                            action="/process/booking-save.php"
+                            data-confirm-dialog-form
+                            data-confirm-title="Cancel booking?"
+                            data-confirm-message="Cancel <?= e($booking['reference']) ?> for <?= e($booking['customer']['name']) ?>? Any recorded payments will remain in the ledger and can be refunded separately."
+                            data-confirm-submit-label="Cancel booking"
+                        >
+                            <input type="hidden" name="action" value="cancel_booking">
+                            <input type="hidden" name="id" value="<?= e($booking['id']) ?>">
+                            <button class="button-danger" type="submit">Cancel booking</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </article>
 

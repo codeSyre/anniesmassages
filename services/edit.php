@@ -16,6 +16,24 @@ if ($service === null) {
 $errors = flash_get('service_errors', []);
 $categoryOptions = Service::categories();
 $roomOptions = Service::roomOptions();
+$selectedAddonsValue = (string) old_input('addons', implode(', ', $service['addons']));
+$selectedAddons = array_values(array_unique(array_filter(array_map(
+    static fn (string $addon): string => trim($addon),
+    explode(',', $selectedAddonsValue)
+), static fn (string $addon): bool => $addon !== '')));
+$suggestedAddons = [];
+foreach (Service::addonOptions() as $addon) {
+    $trimmedAddon = trim((string) $addon);
+
+    if ($trimmedAddon !== '') {
+        $suggestedAddons[strtolower($trimmedAddon)] = $trimmedAddon;
+    }
+}
+foreach ($selectedAddons as $addon) {
+    unset($suggestedAddons[strtolower($addon)]);
+}
+$suggestedAddons = array_values($suggestedAddons);
+sort($suggestedAddons, SORT_NATURAL | SORT_FLAG_CASE);
 $pageTitle = 'Edit Service';
 $pageEyebrow = $service['name'];
 $currentRoute = 'services';
@@ -35,8 +53,8 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Service update</p>
                         <h3>Adjust menu and delivery rules</h3>
-                    </div>
                     <p>Update pricing, duration, room needs, add-ons, and activation state without breaking historical booking records.</p>
+                    </div>
                 </div>
 
                 <?php if (isset($errors['service'])): ?>
@@ -98,7 +116,32 @@ require __DIR__ . '/../includes/header.php';
 
                     <label class="field">
                         <span>Add-ons</span>
-                        <input type="text" name="addons" value="<?= e((string) old_input('addons', implode(', ', $service['addons']))) ?>">
+                        <input type="hidden" name="addons" value="<?= e($selectedAddonsValue) ?>" data-tag-editor-value>
+                        <div class="tag-editor" data-tag-editor data-tag-editor-allow-custom="false">
+                            <div class="tag-editor-list" data-tag-editor-list>
+                                <?php foreach ($selectedAddons as $addon): ?>
+                                    <span class="tag-editor-chip" data-tag-editor-chip data-tag-value="<?= e($addon) ?>">
+                                        <span><?= e($addon) ?></span>
+                                        <button type="button" class="tag-editor-chip-remove" data-tag-editor-remove aria-label="Remove <?= e($addon) ?>">×</button>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                            <input
+                                type="text"
+                                class="tag-editor-input"
+                                list="service-addon-suggestions"
+                                placeholder="Search add-ons from existing records"
+                                autocomplete="off"
+                                data-tag-editor-input
+                                data-tag-editor-empty-message="Select an existing add-on from the list."
+                            >
+                        </div>
+                        <datalist id="service-addon-suggestions">
+                            <?php foreach ($suggestedAddons as $addon): ?>
+                                <option value="<?= e($addon) ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
+                        <small>Select only from existing add-ons already stored in the system.</small>
                     </label>
 
                     <label class="toggle-field">

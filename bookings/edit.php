@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../includes/bootstrap.php';
 require_once __DIR__ . '/../models/Booking.php';
+require_once __DIR__ . '/../models/Payment.php';
 require_once __DIR__ . '/../models/Service.php';
 
 $currentUser = require_login();
@@ -20,10 +21,85 @@ $customerOptions = $activeCustomers;
 if ($booking !== null && !array_filter($activeCustomers, static fn (array $customer): bool => $customer['id'] === $booking['customer']['id'])) {
     $customerOptions[] = $booking['customer'];
 }
+$selectedCustomerId = (string) old_input('customer_id', $booking['customer']['id']);
+$customerSearchOptions = array_map(static function (array $customer): array {
+    $searchLabelParts = [$customer['name']];
+    if (!empty($customer['phone'])) {
+        $searchLabelParts[] = $customer['phone'];
+    }
+    if (($customer['status'] ?? 'active') === 'banned') {
+        $searchLabelParts[] = 'banned';
+    }
+
+    return [
+        'id' => $customer['id'],
+        'label' => implode(' · ', $searchLabelParts),
+    ];
+}, $customerOptions);
+$selectedCustomerLabel = '';
+foreach ($customerSearchOptions as $customerSearchOption) {
+    if ($customerSearchOption['id'] === $selectedCustomerId) {
+        $selectedCustomerLabel = $customerSearchOption['label'];
+        break;
+    }
+}
 $activeServices = Service::activeOptions();
 $serviceOptions = $activeServices;
 if ($booking !== null && !array_filter($activeServices, static fn (array $service): bool => $service['id'] === $booking['service']['id'])) {
     $serviceOptions[] = $booking['service'];
+}
+$selectedServiceId = (string) old_input('service_id', $booking['service']['id']);
+$serviceSearchOptions = array_map(static function (array $service): array {
+    $searchLabelParts = [
+        $service['name'],
+        (string) $service['duration'] . ' min',
+    ];
+    if (empty($service['active'])) {
+        $searchLabelParts[] = 'inactive';
+    }
+
+    return [
+        'id' => $service['id'],
+        'label' => implode(' · ', $searchLabelParts),
+    ];
+}, $serviceOptions);
+$selectedServiceLabel = '';
+foreach ($serviceSearchOptions as $serviceSearchOption) {
+    if ($serviceSearchOption['id'] === $selectedServiceId) {
+        $selectedServiceLabel = $serviceSearchOption['label'];
+        break;
+    }
+}
+$selectedStaffId = (string) old_input('staff_id', $booking['staff']['id']);
+$staffSearchOptions = array_map(static function (array $staff): array {
+    return [
+        'id' => $staff['id'],
+        'label' => $staff['name'],
+    ];
+}, $options['staff']);
+$selectedStaffLabel = '';
+foreach ($staffSearchOptions as $staffSearchOption) {
+    if ($staffSearchOption['id'] === $selectedStaffId) {
+        $selectedStaffLabel = $staffSearchOption['label'];
+        break;
+    }
+}
+$channelSearchOptions = array_map(static function (string $method): array {
+    return [
+        'id' => $method,
+        'label' => Payment::methodLabel($method),
+    ];
+}, Payment::methods());
+$selectedChannel = (string) old_input('channel', $booking['channel']);
+if (!in_array($selectedChannel, Payment::methods(), true)) {
+    $selectedChannel = '';
+}
+$selectedChannelLabel = '';
+foreach ($channelSearchOptions as $channelSearchOption) {
+    if ($channelSearchOption['id'] === $selectedChannel) {
+        $selectedChannelLabel = $channelSearchOption['label'];
+        break;
+    }
 }
 $errors = flash_get('booking_errors', []);
 $pageTitle = 'Edit Booking';
@@ -59,34 +135,70 @@ require __DIR__ . '/../includes/header.php';
                     <div class="form-grid">
                         <label class="field">
                             <span>Customer</span>
-                            <select name="customer_id">
-                                <?php foreach ($customerOptions as $customer): ?>
-                                    <?php $selected = old_input('customer_id', $booking['customer']['id']) === $customer['id']; ?>
-                                    <option value="<?= e($customer['id']) ?>" <?= $selected ? 'selected' : '' ?>><?= e($customer['name']) ?><?= (($customer['status'] ?? 'active') === 'banned') ? ' · banned' : '' ?></option>
+                            <input id="booking-customer-id" type="hidden" name="customer_id" value="<?= e($selectedCustomerId) ?>">
+                            <input
+                                id="booking-customer-search"
+                                type="text"
+                                list="booking-customer-options"
+                                value="<?= e($selectedCustomerLabel) ?>"
+                                placeholder="Search customer by name"
+                                autocomplete="off"
+                                required
+                                data-searchable-select-input
+                                data-searchable-select-target="booking-customer-id"
+                                data-searchable-select-empty-message="Select a customer from the list."
+                            >
+                            <datalist id="booking-customer-options">
+                                <?php foreach ($customerSearchOptions as $customer): ?>
+                                    <option value="<?= e($customer['label']) ?>" data-searchable-select-id="<?= e($customer['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($errors['customer_id'])): ?><small><?= e($errors['customer_id']) ?></small><?php endif; ?>
                         </label>
 
                         <label class="field">
                             <span>Service</span>
-                            <select name="service_id">
-                                <?php foreach ($serviceOptions as $service): ?>
-                                    <?php $selected = old_input('service_id', $booking['service']['id']) === $service['id']; ?>
-                                    <option value="<?= e($service['id']) ?>" <?= $selected ? 'selected' : '' ?>><?= e($service['name']) ?> · <?= e((string) $service['duration']) ?> min<?= empty($service['active']) ? ' · inactive' : '' ?></option>
+                            <input id="booking-service-id" type="hidden" name="service_id" value="<?= e($selectedServiceId) ?>">
+                            <input
+                                id="booking-service-search"
+                                type="text"
+                                list="booking-service-options"
+                                value="<?= e($selectedServiceLabel) ?>"
+                                placeholder="Search service by name"
+                                autocomplete="off"
+                                required
+                                data-searchable-select-input
+                                data-searchable-select-target="booking-service-id"
+                                data-searchable-select-empty-message="Select a service from the list."
+                            >
+                            <datalist id="booking-service-options">
+                                <?php foreach ($serviceSearchOptions as $service): ?>
+                                    <option value="<?= e($service['label']) ?>" data-searchable-select-id="<?= e($service['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($errors['service_id'])): ?><small><?= e($errors['service_id']) ?></small><?php endif; ?>
                         </label>
 
                         <label class="field">
                             <span>Therapist</span>
-                            <select name="staff_id">
-                                <?php foreach ($options['staff'] as $staff): ?>
-                                    <?php $selected = old_input('staff_id', $booking['staff']['id']) === $staff['id']; ?>
-                                    <option value="<?= e($staff['id']) ?>" <?= $selected ? 'selected' : '' ?>><?= e($staff['name']) ?></option>
+                            <input id="booking-staff-id" type="hidden" name="staff_id" value="<?= e($selectedStaffId) ?>">
+                            <input
+                                id="booking-staff-search"
+                                type="text"
+                                list="booking-staff-options"
+                                value="<?= e($selectedStaffLabel) ?>"
+                                placeholder="Search therapist by name"
+                                autocomplete="off"
+                                required
+                                data-searchable-select-input
+                                data-searchable-select-target="booking-staff-id"
+                                data-searchable-select-empty-message="Select a therapist from the list."
+                            >
+                            <datalist id="booking-staff-options">
+                                <?php foreach ($staffSearchOptions as $staff): ?>
+                                    <option value="<?= e($staff['label']) ?>" data-searchable-select-id="<?= e($staff['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($errors['staff_id'])): ?><small><?= e($errors['staff_id']) ?></small><?php endif; ?>
                         </label>
 
@@ -103,8 +215,26 @@ require __DIR__ . '/../includes/header.php';
                         </label>
 
                         <label class="field">
-                            <span>Channel</span>
-                            <input type="text" name="channel" value="<?= e((string) old_input('channel', $booking['channel'])) ?>">
+                            <span>Payment channel</span>
+                            <input id="booking-channel-id" type="hidden" name="channel" value="<?= e($selectedChannel) ?>">
+                            <input
+                                id="booking-channel-search"
+                                type="text"
+                                list="booking-channel-options"
+                                value="<?= e($selectedChannelLabel) ?>"
+                                placeholder="Search payment channel"
+                                autocomplete="off"
+                                required
+                                data-searchable-select-input
+                                data-searchable-select-target="booking-channel-id"
+                                data-searchable-select-empty-message="Select a payment channel from the list."
+                            >
+                            <datalist id="booking-channel-options">
+                                <?php foreach ($channelSearchOptions as $channelOption): ?>
+                                    <option value="<?= e($channelOption['label']) ?>" data-searchable-select-id="<?= e($channelOption['id']) ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                            <?php if (isset($errors['channel'])): ?><small><?= e($errors['channel']) ?></small><?php endif; ?>
                         </label>
 
                         <label class="field">

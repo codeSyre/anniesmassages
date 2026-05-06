@@ -9,7 +9,7 @@ require_permission('inventory.manage');
 $errors = flash_get('inventory_item_errors', []);
 $serviceOptions = Inventory::serviceOptions();
 $categories = Inventory::categories();
-$locations = Inventory::locations();
+$locations = Inventory::storageLocations();
 $selectedServices = old_input('used_in_services', []);
 $selectedServices = is_array($selectedServices) ? $selectedServices : [];
 
@@ -86,7 +86,25 @@ require __DIR__ . '/../includes/header.php';
                         </label>
                         <label class="field">
                             <span>Storage location</span>
-                            <input type="text" name="location" value="<?= e((string) old_input('location', 'Main storage')) ?>" placeholder="Shelf, room, cabinet">
+                            <?php $selectedLocation = (string) old_input('location', 'Main storage'); ?>
+                            <input type="hidden" name="location" id="inventory-location-value" value="<?= e($selectedLocation) ?>">
+                            <input
+                                type="text"
+                                id="inventory-location-search"
+                                value="<?= e($selectedLocation) ?>"
+                                list="inventory-location-options"
+                                autocomplete="off"
+                                placeholder="Select storage location"
+                                data-searchable-select-input
+                                data-searchable-select-target="inventory-location-value"
+                                data-searchable-select-empty-message="Select a valid storage location from the list."
+                            >
+                            <datalist id="inventory-location-options">
+                                <?php foreach ($locations as $location): ?>
+                                    <option value="<?= e($location) ?>" data-searchable-select-id="<?= e($location) ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                            <?php if (isset($errors['location'])): ?><small><?= e($errors['location']) ?></small><?php endif; ?>
                         </label>
                     </div>
 
