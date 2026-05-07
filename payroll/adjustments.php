@@ -14,6 +14,24 @@ $filters = [
     'date_from' => (string) ($_GET['date_from'] ?? date('Y-m-01')),
     'date_to' => (string) ($_GET['date_to'] ?? date('Y-m-t')),
 ];
+$staffOptionLabel = static function (array $options, string $staffId, string $fallback): string {
+    foreach ($options as $option) {
+        if ((string) $option['id'] !== $staffId) {
+            continue;
+        }
+
+        return (string) $option['name'];
+    }
+
+    return $fallback;
+};
+
+$recordStaffId = (string) old_input('staff_id', $filters['staff_id']);
+$recordStaffLabel = $staffOptionLabel($staffOptions, $recordStaffId, 'Select a staff member');
+$filterStaffLabel = $filters['staff_id'] !== ''
+    ? $staffOptionLabel($staffOptions, $filters['staff_id'], 'All staff')
+    : 'All staff';
+
 $adjustments = Payroll::adjustments($filters);
 $errors = flash_get('payroll_adjustment_errors', []);
 $flashMessage = flash_get('payroll_success');
@@ -48,8 +66,8 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Record payroll input</p>
                         <h3>Create a first-class payroll record</h3>
-                    </div>
                     <p>Use this for bonuses, deductions, advance recoveries, and overtime. Only approved rows are counted in payroll.</p>
+                    </div>
                 </div>
 
                 <form class="module-form" method="post" action="/process/payroll-save.php">
@@ -58,11 +76,21 @@ require __DIR__ . '/../includes/header.php';
                     <div class="form-grid">
                         <label class="field">
                             <span>Staff member</span>
-                            <select name="staff_id">
+                            <input type="hidden" name="staff_id" id="payroll-adjustment-staff-id" value="<?= e($recordStaffId) ?>">
+                            <input
+                                type="text"
+                                list="payroll-adjustment-staff-options"
+                                value="<?= e($recordStaffLabel) ?>"
+                                placeholder="Select a staff member"
+                                data-searchable-select-input
+                                data-searchable-select-target="payroll-adjustment-staff-id"
+                                data-searchable-select-empty-message="Select a valid staff member from the list."
+                            >
+                            <datalist id="payroll-adjustment-staff-options">
                                 <?php foreach ($staffOptions as $option): ?>
-                                    <option value="<?= e($option['id']) ?>" <?= (string) $fieldValue('staff_id', $filters['staff_id']) === $option['id'] ? 'selected' : '' ?>><?= e($option['name']) ?></option>
+                                    <option value="<?= e($option['name']) ?>" data-searchable-select-id="<?= e($option['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                             <?php if (isset($errors['staff_id'])): ?><small><?= e($errors['staff_id']) ?></small><?php endif; ?>
                         </label>
                         <label class="field">
@@ -135,12 +163,22 @@ require __DIR__ . '/../includes/header.php';
                     <div class="form-grid">
                         <label class="field">
                             <span>Staff</span>
-                            <select name="staff_id">
-                                <option value="">All staff</option>
+                            <input type="hidden" name="staff_id" id="payroll-adjustment-filter-staff-id" value="<?= e($filters['staff_id']) ?>">
+                            <input
+                                type="text"
+                                list="payroll-adjustment-filter-staff-options"
+                                value="<?= e($filterStaffLabel) ?>"
+                                placeholder="All staff"
+                                data-searchable-select-input
+                                data-searchable-select-target="payroll-adjustment-filter-staff-id"
+                                data-searchable-select-empty-message="Select a valid staff filter from the list."
+                            >
+                            <datalist id="payroll-adjustment-filter-staff-options">
+                                <option value="All staff" data-searchable-select-id=""></option>
                                 <?php foreach ($staffOptions as $option): ?>
-                                    <option value="<?= e($option['id']) ?>" <?= $filters['staff_id'] === $option['id'] ? 'selected' : '' ?>><?= e($option['name']) ?></option>
+                                    <option value="<?= e($option['name']) ?>" data-searchable-select-id="<?= e($option['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                         </label>
                         <label class="field">
                             <span>Type</span>

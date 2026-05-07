@@ -159,6 +159,8 @@ function action_icon_svg(string $icon): string
         'approve' => '<path d="M9.25 12.25l2 2l4.5-4.75" /><circle cx="12" cy="12" r="8.25" />',
         'lock' => '<rect x="6.75" y="10.25" width="10.5" height="8" rx="2" /><path d="M9 10.25V8.5a3 3 0 1 1 6 0v1.75" />',
         'pay' => '<rect x="4.75" y="6.5" width="14.5" height="10.5" rx="2.5" /><path d="M4.75 10h14.5" /><path d="M8 13.5h2.75" /><path d="M15.5 13.5h.01" />',
+        'run' => '<path d="M6.25 18.25h11.5" /><path d="M8.25 15.25V10.5" /><path d="M12 15.25V6.75" /><path d="M15.75 15.25v-3.5" /><path d="M17.75 5.75l1.5 1.5l-4 4" />',
+        'payslip' => '<path d="M7.25 4.75h7.5l3 3v11.5a1 1 0 0 1-1 1h-9.5a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1Z" /><path d="M14.75 4.75v3h3" /><path d="M8.75 11h6.5" /><path d="M8.75 14h4.5" />',
         'freeze' => '<rect x="7.25" y="6.25" width="3.25" height="11.5" rx="1.25" /><rect x="13.5" y="6.25" width="3.25" height="11.5" rx="1.25" />',
         'suspend' => '<circle cx="12" cy="12" r="8.25" /><path d="M8.5 8.5l7 7" />',
         'delete' => '<path d="M5.75 7.25h12.5" /><path d="M9.25 4.75h5.5" /><path d="M8.25 7.25v10a1 1 0 0 0 1 1h5.5a1 1 0 0 0 1-1v-10" /><path d="M10.25 10.25v5" /><path d="M13.75 10.25v5" />',

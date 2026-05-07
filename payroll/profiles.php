@@ -9,6 +9,18 @@ require_permission('payroll.manage');
 
 $staffOptions = Payroll::staffOptions();
 $selectedStaffId = (string) ($_GET['staff_id'] ?? ($staffOptions[0]['id'] ?? ''));
+$selectedStaffOptionLabel = '';
+
+foreach ($staffOptions as $staffOption) {
+    if ((string) $staffOption['id'] !== $selectedStaffId) {
+        continue;
+    }
+
+    $selectedStaffOptionLabel = $staffOption['name'];
+    break;
+}
+
+$selectedStaffOptionLabel = $selectedStaffOptionLabel !== '' ? $selectedStaffOptionLabel : 'Select a staff member';
 $selectedProfile = $selectedStaffId !== '' ? Payroll::profileForStaff($selectedStaffId) : null;
 $profiles = Payroll::profiles();
 $errors = flash_get('payroll_profile_errors', []);
@@ -44,23 +56,33 @@ require __DIR__ . '/../includes/header.php';
                     <div>
                         <p class="section-kicker">Payroll profile</p>
                         <h3>Set how each employee should be paid</h3>
-                    </div>
                     <p>These settings drive payroll calculations, payment posting, and statutory deductions.</p>
+                    </div>
                 </div>
 
                 <form class="module-form" method="get" action="/payroll/profiles.php">
-                    <div class="form-grid">
+                    <div class="payroll-profile-picker">
                         <label class="field">
                             <span>Staff member</span>
-                            <select name="staff_id">
+                            <input type="hidden" name="staff_id" id="payroll-profile-staff-id" value="<?= e($selectedStaffId) ?>">
+                            <input
+                                type="text"
+                                list="payroll-profile-staff-options"
+                                value="<?= e($selectedStaffOptionLabel) ?>"
+                                placeholder="Select a staff member"
+                                data-searchable-select-input
+                                data-searchable-select-target="payroll-profile-staff-id"
+                                data-searchable-select-empty-message="Select a valid staff member from the list."
+                            >
+                            <datalist id="payroll-profile-staff-options">
                                 <?php foreach ($staffOptions as $option): ?>
-                                    <option value="<?= e($option['id']) ?>" <?= $selectedStaffId === $option['id'] ? 'selected' : '' ?>><?= e($option['name']) ?></option>
+                                    <option value="<?= e($option['name']) ?>" data-searchable-select-id="<?= e($option['id']) ?>"></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </datalist>
                         </label>
-                    </div>
-                    <div class="button-row">
-                        <button class="button-primary" type="submit">Load profile</button>
+                        <div class="payroll-profile-picker-action">
+                            <button class="button-primary" type="submit">Load profile</button>
+                        </div>
                     </div>
                 </form>
 
@@ -160,11 +182,17 @@ require __DIR__ . '/../includes/header.php';
                         <div class="form-grid">
                             <label class="field checkbox-field">
                                 <input type="checkbox" name="overtime_eligible" value="1" <?= (string) $fieldValue('overtime_eligible', '0') === '1' ? 'checked' : '' ?>>
-                                <span>Eligible for overtime</span>
+                                <div class="checkbox-field-copy">
+                                    <strong>Eligible for overtime</strong>
+                                    <p>Include approved overtime hours in gross pay calculations for this employee.</p>
+                                </div>
                             </label>
                             <label class="field checkbox-field">
                                 <input type="checkbox" name="active" value="1" <?= (string) $fieldValue('active', '1') === '1' ? 'checked' : '' ?>>
-                                <span>Active payroll profile</span>
+                                <div class="checkbox-field-copy">
+                                    <strong>Active payroll profile</strong>
+                                    <p>Keep this profile available for run generation and payout posting.</p>
+                                </div>
                             </label>
                         </div>
 

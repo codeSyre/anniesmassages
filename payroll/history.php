@@ -204,17 +204,6 @@ require __DIR__ . '/../includes/header.php';
                         <p><?= e($selectedRun['reference']) ?> · <?= e(Payroll::statusLabel((string) $selectedRun['status'])) ?></p>
                     </div>
 
-                    <?php if (in_array($selectedRun['status'], ['draft', 'under_review', 'approved'], true)): ?>
-                        <div class="button-row">
-                            <form class="inline-action-form" method="post" action="/process/payroll-save.php">
-                                <input type="hidden" name="action" value="cancel">
-                                <input type="hidden" name="run_id" value="<?= e($selectedRun['id']) ?>">
-                                <input type="hidden" name="return_to" value="<?= e('/payroll/history.php?id=' . urlencode($selectedRun['id'])) ?>">
-                                <button class="button-muted" type="submit">Cancel run</button>
-                            </form>
-                        </div>
-                    <?php endif; ?>
-
                     <div class="detail-pairs">
                         <div><span>Period</span><strong><?= e(date('j M Y', strtotime($selectedRun['period_start']))) ?> - <?= e(date('j M Y', strtotime($selectedRun['period_end']))) ?></strong><small><?= e($selectedRun['created_by']) ?> created this run</small></div>
                         <div><span>Net payout</span><strong><?= e(format_money((float) $selectedRun['totals']['net_payout'])) ?></strong><small>Gross <?= e(format_money((float) $selectedRun['totals']['gross_pay'])) ?> · Deductions <?= e(format_money((float) $selectedRun['totals']['deduction_total'])) ?></small></div>
@@ -250,29 +239,40 @@ require __DIR__ . '/../includes/header.php';
                                         </td>
                                         <td>
                                             <strong><?= e(ucfirst($item['salary_structure'])) ?></strong>
-                                            <span><?= e(ucfirst($item['employment_type'] ?? 'commission')) ?> · <?= e((string) ($item['commission_eligible_count'] ?? $item['completed_count'])) ?> eligible</span>
                                         </td>
                                         <td>
                                             <strong><?= e(format_money((float) $item['gross_pay'])) ?></strong>
-                                            <span>Commission <?= e(format_money((float) $item['commission_total'])) ?> · Bonus <?= e(format_money((float) ($item['bonus_total'] ?? 0))) ?></span>
                                         </td>
                                         <td>
                                             <strong><?= e(format_money((float) $item['total_deductions'])) ?></strong>
-                                            <span>Tax <?= e(format_money((float) ($item['tax_amount'] ?? 0))) ?> · Advance <?= e(format_money((float) ($item['advance_total'] ?? 0))) ?></span>
                                         </td>
                                         <td>
                                             <strong><?= e(format_money((float) $item['net_pay'])) ?></strong>
-                                            <span><?= e($item['adjustment_note'] !== '' ? $item['adjustment_note'] : 'No manual note') ?></span>
                                         </td>
-                                        <td class="row-actions">
-                                            <?php if (($selectedRun['status'] === 'locked' || $selectedRun['status'] === 'paid') && ($item['staff_id'] ?? '') !== ''): ?>
-                                                <a href="/payroll/payslip.php?run_id=<?= e(urlencode($selectedRun['id'])) ?>&staff_id=<?= e(urlencode((string) $item['staff_id'])) ?>">Payslip</a>
-                                            <?php endif; ?>
+                                        <td class="row-actions-cell">
+                                            <div class="row-actions">
+                                                <?php if (($selectedRun['status'] === 'locked' || $selectedRun['status'] === 'paid') && ($item['staff_id'] ?? '') !== ''): ?>
+                                                    <a class="icon-action-button" href="/payroll/payslip.php?run_id=<?= e(urlencode($selectedRun['id'])) ?>&staff_id=<?= e(urlencode((string) $item['staff_id'])) ?>" aria-label="Open payslip for <?= e($item['staff_name']) ?>" title="Payslip">
+                                                        <?= action_icon_svg('payslip') ?>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
+
+                        <?php if (in_array($selectedRun['status'], ['draft', 'under_review', 'approved'], true)): ?>
+                            <div class="button-row section-spaced">
+                                <form method="post" action="/process/payroll-save.php">
+                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="hidden" name="run_id" value="<?= e($selectedRun['id']) ?>">
+                                    <input type="hidden" name="return_to" value="<?= e('/payroll/history.php?id=' . urlencode($selectedRun['id'])) ?>">
+                                    <button class="button-danger" type="submit">Cancel run</button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
                     </section>
 
                     <?php if (($selectedRun['payment_entries'] ?? []) !== []): ?>

@@ -1194,6 +1194,18 @@ td strong {
   gap: 16px;
 }
 
+.payroll-profile-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.payroll-profile-picker-action {
+  display: flex;
+  align-items: flex-end;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -1227,6 +1239,88 @@ td strong {
 
 .field small {
   color: var(--color-danger);
+}
+
+.checkbox-field {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, rgba(13, 18, 23, 0.92), rgba(9, 13, 17, 0.82));
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.checkbox-field:hover {
+  border-color: rgba(86, 199, 255, 0.22);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.checkbox-field:has(input:checked) {
+  border-color: rgba(86, 199, 255, 0.32);
+  background: linear-gradient(180deg, rgba(11, 24, 30, 0.96), rgba(8, 19, 24, 0.86));
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+.checkbox-field input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.checkbox-field input[type="checkbox"]::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #041015;
+  border-bottom: 2px solid #041015;
+  opacity: 0;
+  transform: rotate(-45deg) translateY(-1px);
+  transition: opacity 0.16s ease;
+}
+
+.checkbox-field input[type="checkbox"]:checked {
+  background: var(--color-primary);
+  border-color: transparent;
+  box-shadow: 0 0 0 4px rgba(86, 199, 255, 0.16);
+}
+
+.checkbox-field input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.checkbox-field input[type="checkbox"]:focus-visible {
+  outline: none;
+  border-color: rgba(86, 199, 255, 0.44);
+  box-shadow: 0 0 0 4px rgba(86, 199, 255, 0.12);
+}
+
+.checkbox-field-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.checkbox-field-copy strong {
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.checkbox-field-copy p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.5;
 }
 
 .tag-editor {
@@ -1474,7 +1568,7 @@ td strong {
 .table-input,
 .table-textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 18px;
   background: rgba(10, 14, 17, 0.78);
   color: var(--color-text);
   border: 1px solid var(--color-border);
@@ -1493,6 +1587,54 @@ td strong {
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.payroll-preview-card table {
+  table-layout: fixed;
+}
+
+.payroll-preview-card th,
+.payroll-preview-card td {
+  padding: 20px 14px;
+}
+
+.payroll-preview-card th:first-child,
+.payroll-preview-card td:first-child {
+  padding-left: 0;
+}
+
+.payroll-preview-card th:last-child,
+.payroll-preview-card td:last-child {
+  padding-right: 0;
+}
+
+.payroll-preview-card th:nth-child(1),
+.payroll-preview-card td:nth-child(1) {
+  width: 12%;
+}
+
+.payroll-preview-card th:nth-child(2),
+.payroll-preview-card td:nth-child(2),
+.payroll-preview-card th:nth-child(3),
+.payroll-preview-card td:nth-child(3),
+.payroll-preview-card th:nth-child(6),
+.payroll-preview-card td:nth-child(6) {
+  width: 8%;
+}
+
+.payroll-preview-card th:nth-child(4),
+.payroll-preview-card td:nth-child(4) {
+  width: 16%;
+}
+
+.payroll-preview-card th:nth-child(5),
+.payroll-preview-card td:nth-child(5) {
+  width: 28%;
+}
+
+.payroll-preview-card td .table-input,
+.payroll-preview-card td .table-textarea {
+  margin-top: 2px;
 }
 
 .detail-pairs span,
@@ -1688,71 +1830,101 @@ td strong {
 }
 
 .schedule-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 10px;
 }
 
 .schedule-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 10px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 56px;
+  gap: 10px;
+  padding: 12px 14px;
   background: rgba(0, 150, 199, 0.12);
-  border: 1px solid rgba(86, 199, 255, 0.12);
-  border-radius: 999px;
-  font-size: 0.76rem;
+  border: 1px solid rgba(86, 199, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.18);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  white-space: normal;
+  overflow: hidden;
+}
+
+.schedule-tag::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 18px 0 0 18px;
+  background: currentColor;
+  opacity: 0.48;
 }
 
 .schedule-tag-link {
+  position: relative;
   color: var(--color-text);
   text-decoration: none;
-  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .schedule-tag-icon {
   display: inline-flex;
-  margin-left: 6px;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .schedule-tag-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
 }
 
 .schedule-tag-link.badge-success {
-  background: rgba(34, 197, 139, 0.24);
-  border-color: rgba(34, 197, 139, 0.34);
-  color: #dffdf0;
+  background: linear-gradient(135deg, rgba(8, 94, 72, 0.96), rgba(7, 116, 84, 0.88));
+  border-color: rgba(52, 211, 153, 0.44);
+  color: #ecfff7;
 }
 
 .schedule-tag-link.badge-warning {
-  background: rgba(242, 169, 59, 0.26);
-  border-color: rgba(242, 169, 59, 0.36);
-  color: #fff1d6;
+  background: linear-gradient(135deg, rgba(120, 73, 16, 0.96), rgba(148, 95, 19, 0.9));
+  border-color: rgba(245, 179, 66, 0.42);
+  color: #fff4dd;
 }
 
 .schedule-tag-link.schedule-tag-overdue {
-  background: rgba(255, 145, 32, 0.42);
-  border-color: rgba(255, 145, 32, 0.58);
-  color: #fff4de;
+  background: linear-gradient(135deg, rgba(151, 78, 12, 0.98), rgba(201, 111, 17, 0.94));
+  border-color: rgba(255, 170, 64, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 24px rgba(161, 84, 10, 0.24);
+  color: #fff7e7;
 }
 
 .schedule-tag-link.badge-danger {
-  background: rgba(255, 107, 107, 0.24);
-  border-color: rgba(255, 107, 107, 0.34);
-  color: #ffe1e1;
+  background: linear-gradient(135deg, rgba(106, 31, 42, 0.96), rgba(136, 37, 52, 0.9));
+  border-color: rgba(255, 122, 136, 0.38);
+  color: #fff0f2;
 }
 
 .schedule-tag-link.badge-info {
-  background: rgba(86, 199, 255, 0.22);
-  border-color: rgba(86, 199, 255, 0.34);
-  color: #e2f7ff;
+  background: linear-gradient(135deg, rgba(8, 81, 118, 0.96), rgba(9, 111, 149, 0.88));
+  border-color: rgba(100, 210, 255, 0.42);
+  color: #eefbff;
 }
 
 .schedule-tag-link:hover,
 .schedule-tag-link:focus-visible {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 28px rgba(0, 0, 0, 0.22);
+  filter: brightness(1.04);
 }
 
 .schedule-empty {
@@ -2269,6 +2441,14 @@ td strong {
   .status-layout,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .payroll-profile-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .payroll-profile-picker-action {
+    justify-content: flex-end;
   }
 
   .module-stat-grid.module-stat-grid-quad {

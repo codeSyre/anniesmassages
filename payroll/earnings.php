@@ -13,6 +13,7 @@ $filters = [
     'staff_id' => (string) ($_GET['staff_id'] ?? 'all'),
 ];
 
+$hasEarningsData = Payroll::earnings(Payroll::currentPeriod() + ['staff_id' => 'all']) !== [];
 $earnings = Payroll::earnings($filters);
 $stats = Payroll::earningsStats($filters);
 $staffOptions = Payroll::staffOptions();
@@ -20,7 +21,14 @@ $staffOptions = Payroll::staffOptions();
 $pageTitle = 'Payroll Earnings';
 $pageEyebrow = 'Live payout preview';
 $currentRoute = 'payroll';
-$topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php?period_start=' . urlencode($filters['period_start']) . '&period_end=' . urlencode($filters['period_end'])];
+if ($hasEarningsData) {
+    $topbarActions = [
+        ['label' => 'Generate payroll run', 'href' => '/payroll/run.php?period_start=' . urlencode($filters['period_start']) . '&period_end=' . urlencode($filters['period_end']), 'permission' => 'payroll.manage'],
+        ['label' => 'Payroll dashboard', 'href' => '/payroll/dashboard.php', 'permission' => 'payroll.manage'],
+    ];
+} else {
+    $topbarAction = ['label' => 'Generate payroll run', 'href' => '/payroll/run.php?period_start=' . urlencode($filters['period_start']) . '&period_end=' . urlencode($filters['period_end'])];
+}
 
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -30,19 +38,21 @@ require __DIR__ . '/../includes/header.php';
     <main class="page">
         <?php require __DIR__ . '/../includes/topbar.php'; ?>
 
-        <section class="module-hero">
-            <article class="hero-panel">
-                <p class="hero-eyebrow">Staff earnings</p>
-                <h1 class="hero-title">Review live payroll math before you lock it into a run.</h1>
-                <p class="hero-copy">This page stays live against eligible bookings, payroll profiles, and approved payroll inputs, so it is the best place to sanity-check gross pay, deductions, and net payout before snapshotting payroll.</p>
+        <section class="module-hero<?= $hasEarningsData ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasEarningsData): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Staff earnings</p>
+                    <h1 class="hero-title">Review live payroll math before you lock it into a run.</h1>
+                    <p class="hero-copy">This page stays live against eligible bookings, payroll profiles, and approved payroll inputs, so it is the best place to sanity-check gross pay, deductions, and net payout before snapshotting payroll.</p>
 
-                <div class="hero-actions">
-                    <a class="action-link" href="/payroll/run.php?period_start=<?= e($filters['period_start']) ?>&period_end=<?= e($filters['period_end']) ?>">Use this for a run</a>
-                    <a class="action-link is-secondary" href="/staff/list.php">Staff roster</a>
-                </div>
-            </article>
+                    <div class="hero-actions">
+                        <a class="action-link" href="/payroll/run.php?period_start=<?= e($filters['period_start']) ?>&period_end=<?= e($filters['period_end']) ?>">Use this for a run</a>
+                        <a class="action-link is-secondary" href="/staff/list.php">Staff roster</a>
+                    </div>
+                </article>
+            <?php endif; ?>
 
-            <aside class="module-stat-grid">
+            <aside class="module-stat-grid<?= $hasEarningsData ? ' module-stat-grid-quad' : '' ?>">
                 <?php foreach ($stats as $stat): ?>
                     <article class="mini-stat-card">
                         <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
@@ -124,27 +134,28 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td>
                                     <strong><?= e(ucfirst($row['salary_structure'])) ?></strong>
-                                    <span><?= e(ucfirst($row['employment_type'])) ?> · <?= e(Payment::methodLabel((string) $row['payment_method'])) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e((string) $row['commission_eligible_count']) ?> eligible</strong>
-                                    <span><?= e((string) $row['completed_count']) ?> completed in period</span>
                                 </td>
                                 <td>
-                                    <strong><?= e(format_money((float) $row['gross_pay'])) ?></strong>
-                                    <span>Commission <?= e(format_money((float) $row['commission_total'])) ?> · Overtime <?= e(format_money((float) $row['overtime_total'])) ?></span>
+                                    <strong><?= e(format_money((float) $row['gross_pay'])) ?></strong></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_money((float) $row['total_deductions'])) ?></strong>
-                                    <span>Tax <?= e(format_money((float) $row['tax_amount'])) ?> · Advances <?= e(format_money((float) $row['advance_total'])) ?></span>
                                 </td>
                                 <td>
                                     <strong><?= e(format_money((float) $row['net_pay'])) ?></strong>
-                                    <span><?= e($row['commission_source_summary']) ?></span>
                                 </td>
-                                <td class="row-actions">
-                                    <a href="/staff/earnings.php?id=<?= e($row['staff_id']) ?>">Staff detail</a>
-                                    <a href="/payroll/run.php?period_start=<?= e(urlencode($filters['period_start'])) ?>&period_end=<?= e(urlencode($filters['period_end'])) ?>&staff_id=<?= e(urlencode($row['staff_id'])) ?>">Build run</a>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/staff/earnings.php?id=<?= e($row['staff_id']) ?>" aria-label="View earnings for <?= e($row['staff_name']) ?>" title="Staff detail">
+                                            <?= action_icon_svg('view') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/payroll/run.php?period_start=<?= e(urlencode($filters['period_start'])) ?>&period_end=<?= e(urlencode($filters['period_end'])) ?>&staff_id=<?= e(urlencode($row['staff_id'])) ?>" aria-label="Build payroll run for <?= e($row['staff_name']) ?>" title="Build run">
+                                            <?= action_icon_svg('run') ?>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
