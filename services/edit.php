@@ -1,3 +1,187 @@
 <?php declare(strict_types=1);
 
-// Placeholder: service edit page.
+require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../models/Service.php';
+
+$currentUser = require_login();
+require_permission('services.update');
+
+$serviceId = (string) ($_GET['id'] ?? '');
+$service = $serviceId !== '' ? Service::find($serviceId) : null;
+
+if ($service === null) {
+    redirect_to('/services/list.php');
+}
+
+$errors = flash_get('service_errors', []);
+$categoryOptions = Service::categories();
+$roomOptions = Service::roomOptions();
+$selectedAddonsValue = (string) old_input('addons', implode(', ', $service['addons']));
+$selectedAddons = array_values(array_unique(array_filter(array_map(
+    static fn (string $addon): string => trim($addon),
+    explode(',', $selectedAddonsValue)
+), static fn (string $addon): bool => $addon !== '')));
+$suggestedAddons = [];
+foreach (Service::addonOptions() as $addon) {
+    $trimmedAddon = trim((string) $addon);
+
+    if ($trimmedAddon !== '') {
+        $suggestedAddons[strtolower($trimmedAddon)] = $trimmedAddon;
+    }
+}
+foreach ($selectedAddons as $addon) {
+    unset($suggestedAddons[strtolower($addon)]);
+}
+$suggestedAddons = array_values($suggestedAddons);
+sort($suggestedAddons, SORT_NATURAL | SORT_FLAG_CASE);
+$pageTitle = 'Edit Service';
+$pageEyebrow = $service['name'];
+$currentRoute = 'services';
+$topbarAction = ['label' => 'View service', 'href' => '/services/view.php?id=' . urlencode($service['id'])];
+
+require __DIR__ . '/../includes/header.php';
+?>
+<div class="app-shell">
+    <?php require __DIR__ . '/../includes/sidebar.php'; ?>
+
+    <main class="page">
+        <?php require __DIR__ . '/../includes/topbar.php'; ?>
+
+        <section class="split-layout">
+            <article class="table-card">
+                <div class="section-head">
+                    <div>
+                        <p class="section-kicker">Service update</p>
+                        <h3>Adjust menu and delivery rules</h3>
+                    <p>Update pricing, duration, room needs, add-ons, and activation state without breaking historical booking records.</p>
+                    </div>
+                </div>
+
+                <?php if (isset($errors['service'])): ?>
+                    <p class="inline-error"><?= e($errors['service']) ?></p>
+                <?php endif; ?>
+
+                <form class="module-form" method="post" action="/process/service-save.php">
+                    <input type="hidden" name="id" value="<?= e($service['id']) ?>">
+
+                    <div class="form-grid">
+                        <label class="field">
+                            <span>Service name</span>
+                            <input type="text" name="name" value="<?= e((string) old_input('name', $service['name'])) ?>">
+                            <?php if (isset($errors['name'])): ?><small><?= e($errors['name']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Category</span>
+                            <select name="category">
+                                <?php foreach ($categoryOptions as $category): ?>
+                                    <option value="<?= e($category) ?>" <?= old_input('category', $service['category']) === $category ? 'selected' : '' ?>>
+                                        <?= e($category) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['category'])): ?><small><?= e($errors['category']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Price</span>
+                            <input type="number" min="0" step="0.01" name="price" value="<?= e((string) old_input('price', (string) $service['price'])) ?>">
+                            <?php if (isset($errors['price'])): ?><small><?= e($errors['price']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Duration (minutes)</span>
+                            <input type="number" min="15" step="15" name="duration" value="<?= e((string) old_input('duration', (string) $service['duration'])) ?>">
+                            <?php if (isset($errors['duration'])): ?><small><?= e($errors['duration']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Buffer (minutes)</span>
+                            <input type="number" min="0" step="5" name="buffer" value="<?= e((string) old_input('buffer', (string) $service['buffer'])) ?>">
+                            <?php if (isset($errors['buffer'])): ?><small><?= e($errors['buffer']) ?></small><?php endif; ?>
+                        </label>
+                        <label class="field">
+                            <span>Room / setup</span>
+                            <select name="room">
+                                <?php foreach ($roomOptions as $room): ?>
+                                    <option value="<?= e($room) ?>" <?= old_input('room', $service['room']) === $room ? 'selected' : '' ?>>
+                                        <?= e($room) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['room'])): ?><small><?= e($errors['room']) ?></small><?php endif; ?>
+                        </label>
+                    </div>
+
+                    <label class="field">
+                        <span>Description</span>
+                        <textarea name="description" rows="4"><?= e((string) old_input('description', $service['description'])) ?></textarea>
+                    </label>
+
+                    <label class="field">
+                        <span>Add-ons</span>
+                        <input type="hidden" name="addons" value="<?= e($selectedAddonsValue) ?>" data-tag-editor-value>
+                        <div class="tag-editor" data-tag-editor data-tag-editor-allow-custom="false">
+                            <div class="tag-editor-list" data-tag-editor-list>
+                                <?php foreach ($selectedAddons as $addon): ?>
+                                    <span class="tag-editor-chip" data-tag-editor-chip data-tag-value="<?= e($addon) ?>">
+                                        <span><?= e($addon) ?></span>
+                                        <button type="button" class="tag-editor-chip-remove" data-tag-editor-remove aria-label="Remove <?= e($addon) ?>">×</button>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                            <input
+                                type="text"
+                                class="tag-editor-input"
+                                list="service-addon-suggestions"
+                                placeholder="Search add-ons from existing records"
+                                autocomplete="off"
+                                data-tag-editor-input
+                                data-tag-editor-empty-message="Select an existing add-on from the list."
+                            >
+                        </div>
+                        <datalist id="service-addon-suggestions">
+                            <?php foreach ($suggestedAddons as $addon): ?>
+                                <option value="<?= e($addon) ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
+                        <small>Select only from existing add-ons already stored in the system.</small>
+                    </label>
+
+                    <label class="toggle-field">
+                        <input type="checkbox" name="active" value="1" <?= old_input('active', $service['active'] ? '1' : '0') === '1' ? 'checked' : '' ?>>
+                        <span>Service is active and visible during booking creation</span>
+                    </label>
+
+                    <div class="button-row">
+                        <a class="button-muted" href="/services/view.php?id=<?= e($service['id']) ?>">Cancel</a>
+                        <button class="button-primary" type="submit">Update service</button>
+                    </div>
+                </form>
+            </article>
+
+            <aside class="activity-card">
+                <div class="section-head">
+                    <div>
+                        <p class="section-kicker">Service summary</p>
+                        <h3><?= e($service['name']) ?></h3>
+                    </div>
+                </div>
+
+                <div class="info-list">
+                    <article class="info-item">
+                        <strong><?= e(format_money((float) $service['price'])) ?> · <?= e((string) $service['duration']) ?> min</strong>
+                        <p><?= e($service['category']) ?> · buffer <?= e((string) $service['buffer']) ?> min</p>
+                    </article>
+                    <article class="info-item">
+                        <strong><?= e((string) $service['booking_count']) ?> linked bookings</strong>
+                        <p><?= e((string) $service['upcoming_count']) ?> upcoming · <?= e((string) $service['completed_count']) ?> completed</p>
+                    </article>
+                    <article class="info-item">
+                        <strong><?= e($service['active'] ? 'Active in intake' : 'Hidden from new bookings') ?></strong>
+                        <p><?= e($service['room']) ?></p>
+                    </article>
+                </div>
+            </aside>
+        </section>
+
+        <?php require __DIR__ . '/../includes/footer.php'; ?>
+    </main>
+</div>
+<?php clear_old_input(); ?>

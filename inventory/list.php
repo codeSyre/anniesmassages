@@ -1,3 +1,213 @@
 <?php declare(strict_types=1);
 
-// Placeholder: inventory list page.
+require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../models/Inventory.php';
+
+$currentUser = require_login();
+require_permission('inventory.manage');
+
+$filters = [
+    'search' => (string) ($_GET['search'] ?? ''),
+    'status' => (string) ($_GET['status'] ?? 'all'),
+    'category' => (string) ($_GET['category'] ?? 'all'),
+];
+
+$hasInventory = Inventory::all() !== [];
+$allInventoryItems = Inventory::all($filters);
+$perPage = 10;
+$currentPage = max(1, (int) ($_GET['page'] ?? 1));
+$totalItems = count($allInventoryItems);
+$totalPages = max(1, (int) ceil($totalItems / $perPage));
+$currentPage = min($currentPage, $totalPages);
+$offset = ($currentPage - 1) * $perPage;
+$inventoryItems = array_slice($allInventoryItems, $offset, $perPage);
+
+if ($totalItems > 0 && $inventoryItems === []) {
+    $currentPage = 1;
+    $offset = 0;
+    $inventoryItems = array_slice($allInventoryItems, 0, $perPage);
+}
+
+$visibleStart = $totalItems > 0 ? $offset + 1 : 0;
+$visibleEnd = min($offset + $perPage, $totalItems);
+$stats = Inventory::stats();
+$categories = Inventory::categories();
+$flashMessage = flash_get('inventory_success');
+
+$pageTitle = 'Inventory';
+$pageEyebrow = 'Stock levels and supply flow';
+$currentRoute = 'inventory';
+
+if ($hasInventory) {
+    $topbarActions = [
+        ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'],
+        ['label' => 'Stock movement history', 'href' => '/inventory/movements.php', 'permission' => 'inventory.manage'],
+    ];
+} else {
+    $topbarAction = ['label' => 'New inventory item', 'href' => '/inventory/create.php', 'permission' => 'inventory.manage'];
+}
+
+
+require __DIR__ . '/../includes/header.php';
+?>
+<div class="app-shell">
+    <?php require __DIR__ . '/../includes/sidebar.php'; ?>
+
+    <main class="page">
+        <?php require __DIR__ . '/../includes/topbar.php'; ?>
+
+        <?php if (is_string($flashMessage) && $flashMessage !== ''): ?>
+            <div class="notice-banner notice-banner-success"><?= e($flashMessage) ?></div>
+        <?php endif; ?>
+
+        <section class="module-hero<?= $hasInventory ? ' module-hero-compact' : '' ?>">
+            <?php if (!$hasInventory): ?>
+                <article class="hero-panel">
+                    <p class="hero-eyebrow">Inventory management</p>
+                    <h1 class="hero-title">Track every supply item before shortages disrupt bookings.</h1>
+                    <p class="hero-copy">Keep consumables, room setup stock, equipment, and service-linked usage visible from one operational stock layer.</p>
+
+                    <div class="hero-actions">
+                        <a class="action-link" href="/inventory/create.php">Add inventory item</a>
+                        <a class="action-link is-secondary" href="/inventory/movements.php">Stock movement history</a>
+                    </div>
+                </article>
+            <?php endif; ?>
+
+            <aside class="module-stat-grid<?= $hasInventory ? ' module-stat-grid-quad' : '' ?>">
+                <?php foreach ($stats as $stat): ?>
+                    <article class="mini-stat-card">
+                        <span class="<?= e(badge_class($stat['tone'])) ?>"><?= e($stat['label']) ?></span>
+                        <strong><?= e($stat['value']) ?></strong>
+                    </article>
+                <?php endforeach; ?>
+            </aside>
+        </section>
+
+        <section class="filter-panel">
+            <div class="filter-panel-row">
+                <div class="filter-chip-row">
+                    <a class="<?= e(active_filter($filters['status'], 'all')) ?>" href="/inventory/list.php?category=<?= e(urlencode($filters['category'])) ?>">All</a>
+                    <a class="<?= e(active_filter($filters['status'], 'in_stock')) ?>" href="/inventory/list.php?status=in_stock&category=<?= e(urlencode($filters['category'])) ?>">In stock</a>
+                    <a class="<?= e(active_filter($filters['status'], 'low_stock')) ?>" href="/inventory/list.php?status=low_stock&category=<?= e(urlencode($filters['category'])) ?>">Low stock</a>
+                    <a class="<?= e(active_filter($filters['status'], 'out_of_stock')) ?>" href="/inventory/list.php?status=out_of_stock&category=<?= e(urlencode($filters['category'])) ?>">Out of stock</a>
+                </div>
+
+                <form class="inline-search" method="get" action="/inventory/list.php">
+                    <input type="hidden" name="status" value="<?= e($filters['status']) ?>">
+                    <select name="category">
+                        <option value="all">All categories</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= e($category) ?>" <?= $filters['category'] === $category ? 'selected' : '' ?>><?= e($category) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="search" name="search" value="<?= e($filters['search']) ?>" placeholder="Search item, SKU, supplier, location, or linked service">
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="table-card">
+            <div class="section-head">
+                <div>
+                    <p class="section-kicker">Inventory register</p>
+                    <h3>Current stock on hand</h3>
+                </div>
+                <p>
+                    <?php if ($totalItems > 0): ?>
+                        Showing <?= e((string) $visibleStart) ?>-<?= e((string) $visibleEnd) ?> of <?= e((string) $totalItems) ?> items. Every quantity shown here is backed by movement history so stock changes stay auditable.
+                    <?php else: ?>
+                        Every quantity shown here is backed by movement history so stock changes stay auditable.
+                    <?php endif; ?>
+                </p>
+            </div>
+
+            <?php if ($allInventoryItems === []): ?>
+                <div class="empty-state">
+                    <strong>No inventory items matched the current filters.</strong>
+                    <p>Try clearing the search or add a new stock item.</p>
+                </div>
+            <?php else: ?>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Category</th>
+                            <th>On hand</th>
+                            <th>Reorder point</th>
+                            <th>Stock value</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($inventoryItems as $item): ?>
+                            <tr>
+                                <td>
+                                    <strong><?= e($item['name']) ?></strong>
+                                    <span><?= e($item['sku']) ?></span>
+                                </td>
+                                <td>
+                                    <strong><?= e($item['category']) ?></strong>
+                                    <span><?= e($item['supplier'] !== '' ? $item['supplier'] : 'No supplier recorded') ?></span>
+                                </td>
+                                <td>
+                                    <strong><?= e(format_quantity((float) $item['on_hand'])) ?> <?= e($item['unit']) ?></strong>
+                                </td>
+                                <td>
+                                    <strong><?= e(format_quantity((float) $item['reorder_level'])) ?> <?= e($item['unit']) ?></strong>
+                                </td>
+                                <td>
+                                    <strong><?= e(format_money((float) $item['stock_value'])) ?></strong>
+                                    <span><?= e(format_money((float) $item['cost_per_unit'])) ?> per <?= e($item['unit']) ?></span>
+                                </td>
+                                <td>
+                                    <span class="<?= e(badge_class($item['stock_tone'])) ?>"><?= e(ucwords(str_replace('_', ' ', $item['stock_status']))) ?></span>
+                                </td>
+                                <td class="row-actions-cell">
+                                    <div class="row-actions">
+                                        <a class="icon-action-button" href="/inventory/edit.php?id=<?= e($item['id']) ?>" aria-label="Edit <?= e($item['name']) ?>" title="Edit">
+                                            <?= action_icon_svg('edit') ?>
+                                        </a>
+                                        <a class="icon-action-button" href="/inventory/movements.php?item_id=<?= e($item['id']) ?>" aria-label="View stock movements for <?= e($item['name']) ?>" title="Movements">
+                                            <?= action_icon_svg('history') ?>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <?php if ($totalPages > 1): ?>
+                    <?php
+                    $pageBaseParams = [
+                        'search' => $filters['search'],
+                        'status' => $filters['status'],
+                        'category' => $filters['category'],
+                    ];
+                    $previousHref = '/inventory/list.php?' . http_build_query($pageBaseParams + ['page' => $currentPage - 1]);
+                    $nextHref = '/inventory/list.php?' . http_build_query($pageBaseParams + ['page' => $currentPage + 1]);
+                    ?>
+                    <div class="button-row list-pagination">
+                        <?php if ($currentPage > 1): ?>
+                            <a class="button-muted" href="<?= e($previousHref) ?>">Previous</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Previous</span>
+                        <?php endif; ?>
+
+                        <span>Page <?= e((string) $currentPage) ?> of <?= e((string) $totalPages) ?></span>
+
+                        <?php if ($currentPage < $totalPages): ?>
+                            <a class="button-muted" href="<?= e($nextHref) ?>">Next</a>
+                        <?php else: ?>
+                            <span class="button-muted button-muted-disabled" aria-disabled="true">Next</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+        </section>
+
+        <?php require __DIR__ . '/../includes/footer.php'; ?>
+    </main>
+</div>

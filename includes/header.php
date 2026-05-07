@@ -8,4 +8,4 @@
     <title><?= e(($pageTitle ?? 'Dashboard') . ' | ' . app_config('app_name', "Annie's Massages Admin")) ?></title>
     <?php require __DIR__ . '/css.php'; ?>
 </head>
-<body>
+<body class="<?= e((string) ($bodyClass ?? '')) ?>">

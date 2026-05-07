@@ -2,6 +2,43 @@
 
 Project scaffold generated from the architecture spec. The repository is organized as a modular PHP monolith with shared runtime files, business modules, process handlers, models, integrations, and supporting assets.
 
+## MySQL In Docker
+
+This project is scaffolded for a Docker MySQL setup that mirrors the `optical-express` style as closely as possible:
+
+- Docker runs the MySQL server
+- database credentials live in `.env`
+- the shared connector lives in `func/connect.php`
+- SQL bootstrap files can live in `database/init`
+- long-term schema and incremental changes still belong in `database/` and `migrations/`
+
+Setup flow:
+
+- Copy env defaults: `cp .env.example .env`
+- Install PHP dependencies: `composer install`
+- Start MySQL: `docker compose up -d`
+- Watch startup logs: `docker compose logs -f mysql`
+
+Connection defaults:
+
+- Host: `127.0.0.1`
+- Port: `3307`
+- Database: `anniesmassages`
+- Username: `admin`
+- Password: `Password@123!`
+
+Shared connector entry points:
+
+- `func/connect.php`
+- `func/functions.php`
+
+Helper functions available once bootstrap loads:
+
+- `db_configured()`
+- `db_connection()`
+- `pdo_connection()`
+- `db_is_online()`
+
 ## Tailwind CSS
 
 Tailwind CSS is configured with the official CLI and a PHP-friendly source file at `resources/css/tailwind.css`.
